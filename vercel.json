@@ -1,5 +1,4 @@
 {
-  "framework": "react-router",
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "installCommand": "pnpm install --store=node_modules/.pnpm-store --no-frozen-lockfile",

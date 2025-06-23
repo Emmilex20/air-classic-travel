@@ -19,15 +19,66 @@ import {
     Pencil,
     Sparkles,
     Headphones,
-    HelpCircle, // NEW: For FAQ section icon
-    ChevronDown, // NEW: For FAQ accordion icon
-    ChevronUp,   // NEW: For FAQ accordion icon
-    Ticket,      // Example icon for booking FAQ
-    CreditCard,  // Example icon for payment FAQ
-    Plane,       // Example icon for flight FAQ
-    Hotel,       // Example icon for hotel FAQ
+    HelpCircle,
+    ChevronDown,
+    ChevronUp,
+    Ticket,
+    CreditCard,
+    Plane,
+    Hotel,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+
+// Reusable Contact Info Card Component
+const ContactInfoCard = ({ icon, title, content, description }) => (
+    <div className="flex items-start p-4 bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
+        <div className="p-3 mr-4 bg-gray-50 rounded-full shadow-inner flex-shrink-0">
+            {icon}
+        </div>
+        {/* ADDED min-w-0 here to ensure text can wrap, especially long emails */}
+        <div className="min-w-0">
+            <h3 className="text-xl font-semibold text-gray-800 mb-1">{title}</h3>
+            {/* The email content itself still has break-all for aggressive breaking */}
+            <div className="text-lg text-gray-700 font-medium">{content}</div>
+            <p className="text-sm text-gray-500 mt-1">{description}</p>
+        </div>
+    </div>
+);
+
+// Reusable Social Link Component
+const SocialLink = ({ icon, href, color }) => (
+    <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`inline-block p-3 rounded-full bg-white shadow-md transform hover:-translate-y-1 transition-all duration-300 ${color}`}
+    >
+        {icon}
+    </a>
+);
+
+// Reusable FAQ Item Component
+const FAQItem = ({ question, answer, icon, isOpen, toggle }) => (
+    <div className="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden transition-all duration-300 ease-in-out hover:shadow-lg">
+        <button
+            onClick={toggle}
+            className="flex justify-between items-center w-full px-6 py-4 text-left font-semibold text-lg text-800 bg-gray-50 hover:bg-gray-100 transition-colors duration-200 focus:outline-none"
+        >
+            <span className="flex items-center">
+                {icon}
+                {question}
+            </span>
+            {isOpen ? <ChevronUp size={20} className="text-indigo-600" /> : <ChevronDown size={20} className="text-gray-500" />}
+        </button>
+        <div
+            className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'}`}
+            style={{ overflow: 'hidden' }}
+        >
+            <p className="px-6 py-4 text-gray-700 bg-white border-t border-gray-100">{answer}</p>
+        </div>
+    </div>
+);
+
 
 function Contact() {
     const [formData, setFormData] = useState({
@@ -37,9 +88,8 @@ function Contact() {
         message: '',
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [openFAQIndex, setOpenFAQIndex] = useState(null); // State for FAQ accordion
+    const [openFAQIndex, setOpenFAQIndex] = useState(null);
 
-    // Array of FAQ data
     const faqs = [
         {
             question: "How do I book a flight?",
@@ -82,7 +132,6 @@ function Contact() {
         e.preventDefault();
         setIsSubmitting(true);
 
-        // --- Frontend Validation ---
         const { name, email, subject, message } = formData;
         if (!name || !email || !subject || !message) {
             toast.error('Please fill in all fields.');
@@ -97,24 +146,8 @@ function Contact() {
 
         console.log('Form Data Submitted:', formData);
 
-        // --- IMPORTANT: Backend Integration Placeholder ---
-        // This is where you would typically send the formData to your backend API
-        // Example using axios (requires a backend endpoint to handle email sending)
-        /*
-        try {
-            const response = await axios.post('/api/contact', formData); // Adjust API_URL if needed
-            toast.success('Your message has been sent successfully!');
-            setFormData({ name: '', email: '', subject: '', message: '' }); // Clear form
-        } catch (error) {
-            console.error('Error sending contact form:', error);
-            toast.error('Failed to send message. Please try again later.');
-        } finally {
-            setIsSubmitting(false);
-        }
-        */
-
         // --- Mock success for demonstration since backend is not implemented here ---
-        await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API call
+        await new Promise((resolve) => setTimeout(resolve, 1500));
         toast.success('Thank you for your message! We will get back to you soon.');
         setFormData({ name: '', email: '', subject: '', message: '' });
         setIsSubmitting(false);
@@ -261,7 +294,7 @@ function Contact() {
                                 <ContactInfoCard
                                     icon={<Mail size={28} className="text-red-600" />}
                                     title="Email Us"
-                                    content={<a href="mailto:support@voyageease.com" className="hover:underline text-blue-600 font-semibold">support@airclassictravel.com</a>}
+                                    content={<a href="mailto:support@voyageease.com" className="hover:underline text-blue-600 font-semibold break-all">support@airclassictravel.com</a>}
                                     description="For general inquiries, partnership, or detailed support."
                                 />
                                 <ContactInfoCard
@@ -296,7 +329,7 @@ function Contact() {
                         </div>
                     </div>
 
-                    {/* NEW: FAQ Section */}
+                    {/* FAQ Section */}
                     <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl shadow-xl border border-indigo-200 p-8 my-16 animate-fade-in-up">
                         <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center flex items-center justify-center">
                             <HelpCircle size={32} className="text-indigo-600 mr-3" /> Frequently Asked Questions
@@ -310,7 +343,7 @@ function Contact() {
                                     key={index}
                                     question={faq.question}
                                     answer={faq.answer}
-                                    icon={faq.icon} // Pass icon to FAQItem
+                                    icon={faq.icon}
                                     isOpen={openFAQIndex === index}
                                     toggle={() => toggleFAQ(index)}
                                 />
@@ -336,55 +369,5 @@ function Contact() {
         </div>
     );
 }
-
-// Reusable Contact Info Card Component (remains unchanged)
-const ContactInfoCard = ({ icon, title, content, description }) => (
-    <div className="flex items-start p-4 bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
-        <div className="p-3 mr-4 bg-gray-50 rounded-full shadow-inner flex-shrink-0">
-            {icon}
-        </div>
-        <div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-1">{title}</h3>
-            <div className="text-lg text-gray-700 font-medium">{content}</div>
-            <p className="text-sm text-gray-500 mt-1">{description}</p>
-        </div>
-    </div>
-);
-
-// Reusable Social Link Component (remains unchanged)
-const SocialLink = ({ icon, href, color }) => (
-    <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`inline-block p-3 rounded-full bg-white shadow-md transform hover:-translate-y-1 transition-all duration-300 ${color}`}
-    >
-        {icon}
-    </a>
-);
-
-// NEW: Reusable FAQ Item Component
-const FAQItem = ({ question, answer, icon, isOpen, toggle }) => (
-    <div className="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden transition-all duration-300 ease-in-out hover:shadow-lg">
-        <button
-            onClick={toggle}
-            className="flex justify-between items-center w-full px-6 py-4 text-left font-semibold text-lg text-gray-800 bg-gray-50 hover:bg-gray-100 transition-colors duration-200 focus:outline-none"
-        >
-            <span className="flex items-center">
-                {icon}
-                {question}
-            </span>
-            {isOpen ? <ChevronUp size={20} className="text-indigo-600" /> : <ChevronDown size={20} className="text-gray-500" />}
-        </button>
-        <div
-            className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'}`}
-            // Use a defined max-height if content is potentially huge, e.g., max-h-[500px]
-            // For simple text, max-h-screen works well for smooth transition.
-            style={{ overflow: 'hidden' }} // Crucial for hiding content smoothly
-        >
-            <p className="px-6 py-4 text-gray-700 bg-white border-t border-gray-100">{answer}</p>
-        </div>
-    </div>
-);
 
 export default Contact;

@@ -1,5 +1,5 @@
 // frontend/src/pages/Blog.jsx
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Newspaper,
@@ -14,8 +14,8 @@ import {
 } from 'lucide-react';
 
 function Blog() {
-    // Dummy blog post data for demonstration
-    const blogPosts = [
+    // Wrap blogPosts in useMemo to prevent re-creation on every render
+    const blogPosts = useMemo(() => [
         {
             id: 1,
             title: "Exploring the Hidden Gems of Southeast Asia",
@@ -76,7 +76,91 @@ function Blog() {
             slug: "adventures-amazon",
             category: "Adventure",
         },
-    ];
+        {
+            id: 7,
+            title: "Winter Wonderland: Skiing in the Alps",
+            excerpt: "Experience the thrill of skiing in the majestic Alps. This guide covers the best resorts, tips for beginners, and breathtaking views.",
+            image: "https://www.thetrainline.com/cms/media/7627/femaleskieralps-609059786.jpg?mode=crop&width=1080&height=1080&quality=70",
+            author: "Snow Enthusiast",
+            date: "May 20, 2024",
+            slug: "skiing-alps",
+            category: "Adventure",
+        },
+        {
+            id: 8,
+            title: "Cultural Immersion in Kyoto, Japan",
+            excerpt: "Discover the ancient traditions and serene beauty of Kyoto. From historic temples to tranquil gardens, immerse yourself in Japanese culture.",
+            image: "https://pelorus-statamic.s3.eu-west-2.amazonaws.com/images/geisha-street.jpg",
+            author: "Culture Seeker",
+            date: "May 18, 2024",
+            slug: "kyoto-cultural-immersion",
+            category: "Food & Culture",
+        },
+        {
+            id: 9,
+            title: "Photography Tips for Stunning Travel Photos",
+            excerpt: "Learn how to capture breathtaking travel moments. This guide covers composition, lighting, and editing techniques for stunning photos.",
+            image: "https://expertvagabond.com/wp-content/uploads/travel-photography-tips-guide-1.jpg",
+            author: "Photo Pro",
+            date: "May 12, 2024",
+            slug: "travel-photography-tips",
+            category: "Photography",
+        },
+        {
+            id: 10,
+            title: "Sustainable Backpacking: Leave No Trace",
+            excerpt: "Learn how to minimize your environmental impact while backpacking. Tips on eco-friendly gear, waste management, and responsible hiking.",
+            image: "https://www.backpacker.com/.image/ar_1:1%2Cc_fill%2Ccs_srgb%2Cfl_progressive%2Cg_faces:auto%2Cq_auto:good%2Cw_620/MTg5MTgwODQxOTg2OTE0MzY4/i-hiked-200-miles-in-cheap-costco-hiking-shoes-and-my-feet-are-doing-fine-hero.jpg",
+            author: "Eco Hiker",
+            date: "May 08, 2024",
+            slug: "sustainable-backpacking",
+            category: "Sustainable Travel",
+        },
+    ], []); // Empty dependency array means it only runs once on mount
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const postsPerPage = 6; // Display 6 posts per page
+
+    // Calculate total pages and posts for the current page
+    const totalPages = Math.ceil(blogPosts.length / postsPerPage);
+    const indexOfLastPost = currentPage * postsPerPage;
+    const indexOfFirstPost = indexOfLastPost - postsPerPage;
+    const currentPosts = useMemo(() => blogPosts.slice(indexOfFirstPost, indexOfLastPost), [blogPosts, indexOfFirstPost, indexOfLastPost]);
+
+    // Function to change page
+    const goToPage = (pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+            window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top on page change
+        }
+    };
+
+    // Helper to generate page numbers to display in pagination
+    const getPaginationGroup = () => {
+        let start = Math.max(1, currentPage - 1);
+        let end = Math.min(totalPages, currentPage + 1);
+
+        // Adjust start/end if near boundaries to keep 3 page numbers visible when possible
+        if (totalPages >= 3) {
+            if (currentPage === 1) {
+                end = 3;
+            } else if (currentPage === totalPages) {
+                start = totalPages - 2;
+            }
+        } else {
+            // For less than 3 total pages, just show all available pages
+            start = 1;
+            end = totalPages;
+        }
+
+        const pages = [];
+        for (let i = start; i <= end; i++) {
+            pages.push(i);
+        }
+        return pages;
+    };
+
 
     // Dummy categories for sidebar
     const categories = [
@@ -127,36 +211,71 @@ function Blog() {
                         <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-8 flex items-center">
                             <Newspaper size={36} className="text-indigo-600 mr-3" /> Latest Articles
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            {blogPosts.map((post) => (
-                                <BlogPostCard key={post.id} post={post} />
-                            ))}
-                        </div>
+                        {currentPosts.length > 0 ? (
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {currentPosts.map((post) => (
+                                    <BlogPostCard key={post.id} post={post} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center text-gray-600 py-10">
+                                <p className="text-xl">No blog posts found for this page.</p>
+                                <p className="mt-2">Try going back to the first page or adjusting your filters.</p>
+                            </div>
+                        )}
 
-                        {/* Pagination (Placeholder) */}
-                        <div className="mt-12 flex justify-center">
-                            <nav className="flex items-center space-x-2">
-                                <Link to="#" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">Previous</Link>
-                                <Link to="#" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">1</Link>
-                                <Link to="#" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">2</Link>
-                                <Link to="#" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">3</Link>
-                                <Link to="#" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">Next</Link>
-                            </nav>
-                        </div>
+
+                        {/* Pagination */}
+                        {totalPages > 1 && ( // Only show pagination if there's more than one page
+                            <div className="mt-12 flex justify-center">
+                                <nav className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => goToPage(currentPage - 1)}
+                                        disabled={currentPage === 1}
+                                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Previous
+                                    </button>
+
+                                    {/* Render page numbers */}
+                                    {getPaginationGroup().map((item, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => goToPage(item)}
+                                            className={`px-4 py-2 rounded-lg transition-colors ${
+                                                currentPage === item
+                                                    ? 'bg-indigo-600 text-white shadow-md'
+                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            {item}
+                                        </button>
+                                    ))}
+
+                                    <button
+                                        onClick={() => goToPage(currentPage + 1)}
+                                        disabled={currentPage === totalPages}
+                                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Next
+                                    </button>
+                                </nav>
+                            </div>
+                        )}
                     </div>
 
                     {/* Sidebar */}
                     <aside className="lg:col-span-1 space-y-10">
-                        {/* Search Bar - UPDATED FOR RESPONSIVENESS AND PROFESSIONAL STYLE */}
+                        {/* Search Bar */}
                         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 transition-all duration-300 focus-within:ring-2 focus-within:ring-indigo-300 focus-within:border-indigo-400">
                             <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
                                 <Search size={24} className="text-indigo-500 mr-2" /> Search
                             </h3>
-                            <div className="flex flex-col sm:flex-row gap-2"> {/* Changed to flex-col with sm:flex-row */}
+                            <div className="flex flex-col sm:flex-row gap-2">
                                 <input
                                     type="text"
                                     placeholder="Search articles..."
-                                    className="w-full sm:flex-grow px-4 py-2 border border-gray-300 rounded-lg sm:rounded-l-lg sm:rounded-r-none focus:outline-none focus:ring-0" // Removed ring-2 from input itself
+                                    className="w-full sm:flex-grow px-4 py-2 border border-gray-300 rounded-lg sm:rounded-l-lg sm:rounded-r-none focus:outline-none focus:ring-0"
                                 />
                                 <button
                                     className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg sm:rounded-r-lg sm:rounded-l-none hover:bg-indigo-700 transition-colors"
@@ -199,7 +318,7 @@ function Blog() {
                             </ul>
                         </div>
 
-                        {/* Newsletter Signup - UPDATED FOR RESPONSIVENESS */}
+                        {/* Newsletter Signup */}
                         <div className="bg-gradient-to-br from-indigo-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
                             <h3 className="text-xl font-bold mb-4 flex items-center">
                                 <Mail size={24} className="mr-2" /> Newsletter
@@ -207,15 +326,13 @@ function Blog() {
                             <p className="text-sm opacity-90 mb-4">
                                 Subscribe to our newsletter for the latest travel tips and exclusive deals.
                             </p>
-                            <form className="flex flex-col sm:flex-row gap-2"> {/* Changed to flex-col with sm:flex-row */}
+                            <form className="flex flex-col sm:flex-row gap-2">
                                 <input
                                     type="email"
                                     placeholder="Your email"
-                                    // Adjusted rounding for responsive transition
                                     className="w-full sm:flex-grow px-4 py-2 border border-transparent rounded-lg sm:rounded-l-lg sm:rounded-r-none focus:outline-none text-gray-800"
                                 />
                                 <button
-                                    // Adjusted rounding for responsive transition
                                     className="w-full sm:w-auto px-4 py-2 bg-white text-indigo-700 rounded-lg sm:rounded-r-lg sm:rounded-l-none font-semibold hover:bg-gray-100 transition-colors"
                                 >
                                     Subscribe

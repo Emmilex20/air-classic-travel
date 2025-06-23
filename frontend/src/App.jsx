@@ -30,6 +30,7 @@ import UserManagement from './pages/UserManagement';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Blog from './pages/Blog';
+import BlogPostDetail from './pages/BlogPostDetail';
 
 // NEW IMPORT for All Bookings and All Payments
 import AllBookings from './pages/AllBookings';
@@ -57,6 +58,7 @@ function App() {
                         <Route path="/about" element={<About />} />
                         <Route path="/contact" element={<Contact />} />
                         <Route path="/blog" element={<Blog />} />
+                        <Route path="/blog/:slug" element={<BlogPostDetail />} />
 
                         {/* Hotel Public Routes */}
                         <Route path="/hotels" element={<HotelList />} />

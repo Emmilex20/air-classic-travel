@@ -27,20 +27,22 @@ import Dashboard from './pages/Dashboard';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import UserManagement from './pages/UserManagement';
+import About from './pages/About';
 
-// NEW IMPORT for All Bookings
+// NEW IMPORT for All Bookings and All Payments
 import AllBookings from './pages/AllBookings';
+import AllPayments from './pages/AllPayments'; // Make sure this path is correct
 
 // Import dedicated Protected Route components for role-based access
-import ProtectedRoute from './components/ProtectedRoute';
-import ProtectedAdminRoute from './components/ProtectedAdminRoute';
+import ProtectedRoute from './components/ProtectedRoute'; // For roles array
+import ProtectedAdminRoute from './components/ProtectedAdminRoute'; // Specifically for 'admin' (can be simplified if ProtectedRoute is flexible enough)
 
 
 function App() {
     return (
         <Router>
-            <ScrollToTop /> 
-            <AuthProvider> {/* AuthProvider wraps the entire application */}
+            <ScrollToTop />
+            <AuthProvider> {/* AuthProvider wraps the entire application to provide auth context */}
                 <Navbar />
                 <main className="flex-grow"> {/* Use flex-grow to push footer to bottom */}
                     <Routes>
@@ -50,6 +52,7 @@ function App() {
                         <Route path="/register" element={<Register />} />
                         <Route path="/flights" element={<FlightList />} />
                         <Route path="/flights/:id" element={<FlightDetails />} />
+                        <Route path="/about" element={<About />} />
 
                         {/* Hotel Public Routes */}
                         <Route path="/hotels" element={<HotelList />} />
@@ -59,11 +62,13 @@ function App() {
                         <Route path="/forgot-password" element={<ForgotPassword />} />
                         <Route path="/reset-password/:resettoken" element={<ResetPassword />} />
 
-                        {/* Protected Routes */}
-                        {/* Admin Dashboard: Only for admin role */}
+                        {/* Protected Routes for Admin Dashboard (using specific admin route component) */}
+                        {/* Note: This ProtectedAdminRoute might internally use ProtectedRoute or have its own logic */}
                         <Route element={<ProtectedAdminRoute />}>
                             <Route path="/dashboard" element={<Dashboard />} />
                         </Route>
+
+                        {/* Grouping Protected Routes by required role(s) */}
 
                         {/* Flight Management: For Admin and Airline Staff */}
                         <Route element={<ProtectedRoute allowedRoles={['admin', 'airline_staff']} />}>
@@ -77,14 +82,12 @@ function App() {
                             <Route path="/hotels/edit/:hotelId" element={<HotelForm />} />
                         </Route>
 
-                        {/* User Management: Only for Admin */}
+                        {/* User Management, All Bookings, All Payments: Only for Admin */}
+                        {/* These are grouped under a single ProtectedRoute with admin role */}
                         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                             <Route path="/admin/users" element={<UserManagement />} />
-                        </Route>
-
-                        {/* NEW PROTECTED ROUTE for All Bookings */}
-                        <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                             <Route path="/admin/bookings" element={<AllBookings />} />
+                            <Route path="/admin/payments" element={<AllPayments />} /> {/* NEW ROUTE ADDED HERE */}
                         </Route>
 
                         {/* User Bookings: Any logged-in user can view their bookings */}

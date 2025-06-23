@@ -1,7 +1,11 @@
 // backend/routes/paymentRoutes.js
 const express = require('express');
-const { verifyPaystackPayment, handlePaystackWebhook } = require('../controllers/paymentController');
-const { protect } = require('../middleware/authMiddleware'); // Your auth middleware
+const {
+    verifyPaystackPayment,
+    handlePaystackWebhook,
+    getAllPaymentsAdmin // <-- NEW: Import the admin function
+} = require('../controllers/paymentController');
+const { protect, admin } = require('../middleware/authMiddleware'); // Your auth middleware, ensure 'admin' is available
 
 const router = express.Router();
 
@@ -11,4 +15,8 @@ router.post('/verify', protect, verifyPaystackPayment);
 // Route for Paystack webhooks (no 'protect' middleware needed here, Paystack authenticates via HMAC)
 router.post('/webhook', handlePaystackWebhook);
 
-module.exports = router;
+// NEW: Route for admin to get all payments
+// This will be hit by the frontend's AllPayments.jsx at /api/payments/admin
+router.get('/admin', protect, admin, getAllPaymentsAdmin); // <-- NEW ROUTE ADDED
+
+module.exports = router; 

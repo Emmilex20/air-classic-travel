@@ -14,8 +14,9 @@ import {
     Settings,       // For system settings
     Edit,           // For manage flights/hotels (more specific than just Plane/Building)
     UserCog,        // For user management settings
-    ClipboardList   // NEW/UPDATED ICON: For All Bookings
-} from 'lucide-react';
+    ClipboardList,  // For All Bookings
+    CreditCard      // NEW ICON: For Payments
+} from 'lucide-react'; // Make sure CreditCard is imported from lucide-react
 
 function Dashboard() {
     const { user, loading: authLoading } = useContext(AuthContext);
@@ -84,19 +85,26 @@ function Dashboard() {
 
                 {/* Card for User Management */}
                 <DashboardCard
-                    to="/admin/users" 
+                    to="/admin/users"
                     icon={<UserCog size={48} className="text-orange-600" />}
                     title="User Management"
                     description="Manage user accounts, roles, and permissions."
                 />
 
-                {/* Card for All Bookings - NOW ENABLED */}
+                {/* Card for All Bookings */}
                 <DashboardCard
-                    to="/admin/bookings" 
-                    icon={<ClipboardList size={48} className="text-red-600" />} // Changed icon to ClipboardList
+                    to="/admin/bookings"
+                    icon={<ClipboardList size={48} className="text-red-600" />}
                     title="All Bookings"
                     description="Overview of all flight and hotel bookings."
-                    // disabled={true} // REMOVED: This is now enabled
+                />
+
+                {/* NEW: Card for All Payments */}
+                <DashboardCard
+                    to="/admin/payments" // Link to the new payments page
+                    icon={<CreditCard size={48} className="text-violet-600" />} // Using CreditCard icon
+                    title="All Payments"
+                    description="View all transaction records and payment details."
                 />
 
                 {/* Placeholder for System Settings */}
@@ -105,32 +113,32 @@ function Dashboard() {
                     icon={<Settings size={48} className="text-gray-600" />}
                     title="System Settings"
                     description="Configure application-wide settings and preferences."
-                    disabled={true} 
+                    disabled={true}
                 />
 
-                 {/* Placeholder for Analytics */}
-                 <DashboardCard
-                    to="/admin/analytics" 
+                {/* Placeholder for Analytics */}
+                <DashboardCard
+                    to="/admin/analytics"
                     icon={<LayoutDashboard size={48} className="text-yellow-600" />}
                     title="Analytics & Reports"
                     description="View system performance and booking trends."
-                    disabled={true} 
+                    disabled={true}
                 />
             </div>
         </div>
     );
 }
 
-// Reusable Card component for Dashboard links
+// Reusable Card component for Dashboard links (remains unchanged)
 const DashboardCard = ({ to, icon, title, description, disabled = false }) => {
     const commonClasses = "bg-white p-8 rounded-2xl shadow-xl border border-gray-100 flex flex-col items-center text-center transition-all duration-300";
     const enabledClasses = "cursor-pointer hover:scale-[1.03] hover:shadow-2xl hover:border-indigo-300";
     const disabledClasses = "opacity-50 cursor-not-allowed";
 
     return (
-        <Link 
-            to={disabled ? "#" : to} 
-            className={`${commonClasses} ${disabled ? disabledClasses : enabledClasses}`} 
+        <Link
+            to={disabled ? "#" : to}
+            className={`${commonClasses} ${disabled ? disabledClasses : enabledClasses}`}
             onClick={(e) => disabled && e.preventDefault()}
         >
             <div className="mb-5 p-3 bg-gray-50 rounded-full shadow-inner">

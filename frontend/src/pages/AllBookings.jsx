@@ -7,21 +7,25 @@ import { useNavigate, Link } from 'react-router-dom';
 
 // Import icons from lucide-react
 import {
-    ClipboardList,    // Main icon for All Bookings
-    Plane,            // Flight icon
-    Hotel,            // Hotel icon
-    Loader2,          // Loading spinner
-    CircleAlert,      // Error icon
-    ArrowLeft,        // Back to dashboard
-    PlaneTakeoff,     // Flight details
-    PlaneLanding,     // Flight details
-    Calendar,         // Dates
-    DollarSign,       // Price
-    Users,            // Passengers/Rooms
-    Tag,              // Status
-    XCircle,          // Cancel action
-    MapPin,           // Hotel location
-    BedDouble,        // Hotel rooms
+    ClipboardList,      // Main icon for All Bookings
+    Plane,              // Flight icon
+    Hotel,              // Hotel icon
+    Loader2,            // Loading spinner
+    CircleAlert,        // Error icon
+    ArrowLeft,          // Back to dashboard
+    PlaneTakeoff,       // Flight details
+    PlaneLanding,       // Flight details
+    Calendar,           // Dates
+    DollarSign,         // Price
+    Users,              // Passengers/Rooms
+    Tag,                // Status
+    XCircle,            // Cancel action
+    MapPin,             // Hotel location
+    BedDouble,          // Hotel rooms
+    CheckCircle,        // For confirmed/completed status
+    MinusCircle,        // For pending status
+    Ban,                // For failed/cancelled status
+    Trash2,             // Added for Delete action
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
@@ -93,33 +97,145 @@ function AllBookings() {
         }
     };
 
+    // Helper function to update booking status (for both flights and hotels)
+    const updateBookingStatus = async (bookingId, bookingType, newBookingStatus, newPaymentStatus) => {
+        if (!token) {
+            toast.error('Authentication token missing.');
+            return;
+        }
+
+        try {
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            let endpoint = '';
+            let updatePayload = {};
+
+            if (bookingType === 'flight') {
+                endpoint = `${API_URL}/admin/bookings/${bookingId}/status`;
+                updatePayload = {
+                    bookingStatus: newBookingStatus,
+                    paymentStatus: newPaymentStatus,
+                };
+            } else if (bookingType === 'hotel') {
+                endpoint = `${API_URL}/admin/hotel-bookings/${bookingId}/status`;
+                updatePayload = {
+                    bookingStatus: newBookingStatus,
+                    paymentStatus: newPaymentStatus,
+                };
+            }
+
+            const { data } = await axios.put(endpoint, updatePayload, config);
+
+            // Update local state with the new status
+            if (bookingType === 'flight') {
+                setFlightBookings(prev => prev.map(b => b._id === bookingId ? data : b));
+            } else if (bookingType === 'hotel') {
+                setHotelBookings(prev => prev.map(b => b._id === bookingId ? data : b));
+            }
+            toast.success(`${bookingType === 'flight' ? 'Flight' : 'Hotel'} booking status updated successfully!`);
+        } catch (err) {
+            console.error(`Error updating ${bookingType} booking status:`, err);
+            const errorMsg = err.response?.data?.message || `Failed to update ${bookingType} booking status.`;
+            toast.error(errorMsg);
+        }
+    };
+
+    const handleDeleteBooking = (bookingId, bookingType) => {
+    toast.info(
+        ({ closeToast }) => (
+            <div className="text-center">
+                <p className="font-semibold text-lg mb-2 text-gray-800">Are you sure you want to delete this {bookingType} booking permanently?</p>
+                <p className="text-sm text-gray-600 mb-4">This action cannot be undone and will remove the booking record from the database.</p>
+                <div className="flex justify-center space-x-4 mt-3">
+                    <button
+                        onClick={async () => {
+                            if (!token) {
+                                toast.error('Authentication token missing.');
+                                closeToast();
+                                return;
+                            }
+                            try {
+                                const config = { headers: { Authorization: `Bearer ${token}` } };
+                                const endpoint = bookingType === 'flight'
+                                    ? `${API_URL}/bookings/admin/${bookingId}` // <-- This line needs review
+                                    : `${API_URL}/hotel-bookings/admin/${bookingId}`;
+                                await axios.delete(endpoint, config);
+
+                                // Remove from local state
+                                if (bookingType === 'flight') {
+                                    setFlightBookings(prev => prev.filter(b => b._id !== bookingId));
+                                } else if (bookingType === 'hotel') {
+                                    setHotelBookings(prev => prev.filter(b => b._id !== bookingId));
+                                }
+                                toast.success(`${bookingType === 'flight' ? 'Flight' : 'Hotel'} booking deleted successfully!`);
+                            } catch (err) {
+                                console.error(`Error deleting ${bookingType} booking:`, err);
+                                const errorMsg = err.response?.data?.message || `Failed to delete ${bookingType} booking.`;
+                                toast.error(errorMsg);
+                            } finally {
+                                closeToast();
+                            }
+                        }}
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-200"
+                    >
+                        <Trash2 size={14} className="inline mr-1" /> Yes, Delete Permanently
+                    </button>
+                    <button
+                        onClick={closeToast}
+                        className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-200"
+                    >
+                        No, Keep Record
+                    </button>
+                </div>
+            </div>
+        ),
+        { closeButton: false, autoClose: false, closeOnClick: false }
+    );
+};
+
+    const handleConfirmPayment = (bookingId, bookingType) => {
+        toast.info(
+            ({ closeToast }) => (
+                <div className="text-center">
+                    <p className="font-semibold text-lg mb-2 text-gray-800">Confirm payment for this {bookingType} booking?</p>
+                    <p className="text-sm text-gray-600 mb-4">This will mark the payment as 'completed' and the booking as 'confirmed'.</p>
+                    <div className="flex justify-center space-x-4 mt-3">
+                        <button
+                            onClick={() => {
+                                updateBookingStatus(bookingId, bookingType, 'confirmed', 'completed');
+                                closeToast();
+                            }}
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-200"
+                        >
+                            Yes, Confirm
+                        </button>
+                        <button
+                            onClick={closeToast}
+                            className="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-200"
+                        >
+                            No, Keep Pending
+                        </button>
+                    </div>
+                </div>
+            ),
+            { closeButton: false, autoClose: false, closeOnClick: false }
+        );
+    };
+
     const handleFlightCancel = async (bookingId) => {
         toast.info(
             ({ closeToast }) => (
                 <div className="text-center">
                     <p className="font-semibold text-lg mb-2 text-gray-800">Are you sure you want to cancel this flight booking?</p>
-                    <p className="text-sm text-gray-600 mb-4">This action cannot be undone.</p>
+                    <p className="text-sm text-gray-600 mb-4">This will mark the booking as 'cancelled' and refund seats. This action cannot be undone.</p>
                     <div className="flex justify-center space-x-4 mt-3">
                         <button
                             onClick={async () => {
-                                if (!token) { toast.error('Authentication token missing.'); closeToast(); return; }
-                                try {
-                                    const config = { headers: { Authorization: `Bearer ${token}` } };
-                                    await axios.put(`${API_URL}/bookings/${bookingId}/cancel`, {}, config);
-                                    toast.success('Flight booking cancelled successfully!');
-                                    // Update the booking status in state
-                                    setFlightBookings(prev => prev.map(b => b._id === bookingId ? { ...b, bookingStatus: 'cancelled' } : b));
-                                } catch (err) {
-                                    console.error('Error cancelling flight booking:', err);
-                                    const errorMsg = err.response?.data?.message || 'Failed to cancel flight booking.';
-                                    toast.error(errorMsg);
-                                } finally {
-                                    closeToast();
-                                }
+                                await updateBookingStatus(bookingId, 'flight', 'cancelled', 'failed');
+                                closeToast();
                             }}
                             className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-200"
                         >
-                            Yes, Cancel
+                            <XCircle size={14} className="inline mr-1" /> Yes, Cancel
                         </button>
                         <button
                             onClick={closeToast}
@@ -139,28 +255,16 @@ function AllBookings() {
             ({ closeToast }) => (
                 <div className="text-center">
                     <p className="font-semibold text-lg mb-2 text-gray-800">Are you sure you want to cancel this hotel booking?</p>
-                    <p className="text-sm text-gray-600 mb-4">This action cannot be undone.</p>
+                    <p className="text-sm text-gray-600 mb-4">This will mark the booking as 'cancelled' and refund rooms. This action cannot be undone.</p>
                     <div className="flex justify-center space-x-4 mt-3">
                         <button
                             onClick={async () => {
-                                if (!token) { toast.error('Authentication token missing.'); closeToast(); return; }
-                                try {
-                                    const config = { headers: { Authorization: `Bearer ${token}` } };
-                                    await axios.put(`${API_URL}/hotel-bookings/${bookingId}/cancel`, {}, config);
-                                    toast.success('Hotel booking cancelled successfully!');
-                                    // Update the booking status in state
-                                    setHotelBookings(prev => prev.map(b => b._id === bookingId ? { ...b, bookingStatus: 'cancelled' } : b));
-                                } catch (err) {
-                                    console.error('Error cancelling hotel booking:', err);
-                                    const errorMsg = err.response?.data?.message || 'Failed to cancel hotel booking.';
-                                    toast.error(errorMsg);
-                                } finally {
-                                    closeToast();
-                                }
+                                await updateBookingStatus(bookingId, 'hotel', 'cancelled', 'failed');
+                                closeToast();
                             }}
                             className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-200"
                         >
-                            Yes, Cancel
+                            <XCircle size={14} className="inline mr-1" /> Yes, Cancel
                         </button>
                         <button
                             onClick={closeToast}
@@ -174,6 +278,76 @@ function AllBookings() {
             { closeButton: false, autoClose: false, closeOnClick: false }
         );
     };
+
+    // Helper to get status pill styling
+    const getStatusPill = (status, type) => {
+        let bgColor = '';
+        let textColor = '';
+        let icon = null;
+
+        if (type === 'booking') {
+            switch (status) {
+                case 'confirmed':
+                    bgColor = 'bg-green-100';
+                    textColor = 'text-green-800';
+                    icon = <CheckCircle size={14} className="inline mr-1" />;
+                    break;
+                case 'pending':
+                    bgColor = 'bg-yellow-100';
+                    textColor = 'text-yellow-800';
+                    icon = <MinusCircle size={14} className="inline mr-1" />;
+                    break;
+                case 'cancelled':
+                    bgColor = 'bg-red-100';
+                    textColor = 'text-red-800';
+                    icon = <Ban size={14} className="inline mr-1" />;
+                    break;
+                case 'completed': // For when bookingStatus directly becomes 'completed' after trip
+                    bgColor = 'bg-blue-100';
+                    textColor = 'text-blue-800';
+                    icon = <CheckCircle size={14} className="inline mr-1" />;
+                    break;
+                default:
+                    bgColor = 'bg-gray-100';
+                    textColor = 'text-gray-800';
+                    icon = <Tag size={14} className="inline mr-1" />;
+            }
+        } else if (type === 'payment') {
+            switch (status) {
+                case 'completed':
+                    bgColor = 'bg-blue-100'; // Using blue for completed payments
+                    textColor = 'text-blue-800';
+                    icon = <CheckCircle size={14} className="inline mr-1" />;
+                    break;
+                case 'pending':
+                    bgColor = 'bg-yellow-100';
+                    textColor = 'text-yellow-800';
+                    icon = <MinusCircle size={14} className="inline mr-1" />;
+                    break;
+                case 'failed':
+                    bgColor = 'bg-red-100';
+                    textColor = 'text-red-800';
+                    icon = <Ban size={14} className="inline mr-1" />;
+                    break;
+                case 'refunded':
+                    bgColor = 'bg-purple-100';
+                    textColor = 'text-purple-800';
+                    icon = <ArrowLeft size={14} className="inline mr-1" />; // Re-using ArrowLeft for refund
+                    break;
+                default:
+                    bgColor = 'bg-gray-100';
+                    textColor = 'text-gray-800';
+                    icon = <Tag size={14} className="inline mr-1" />;
+            }
+        }
+
+        return (
+            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${bgColor} ${textColor}`}>
+                {icon} {status.charAt(0).toUpperCase() + status.slice(1)}
+            </span>
+        );
+    };
+
 
     if (loading) {
         return (
@@ -243,8 +417,9 @@ function AllBookings() {
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Route</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departure</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pax</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booking Status</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tr-lg">Actions</th>
                                     </tr>
                                 </thead>
@@ -258,7 +433,7 @@ function AllBookings() {
                                             </td>
                                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
                                                 {booking.outboundFlight ? `${booking.outboundFlight.departureAirport} → ${booking.outboundFlight.arrivalAirport}` : 'N/A'}
-                                                {booking.bookingType === 'round-trip' && booking.returnFlight && ` (Return)`}
+                                                {booking.bookingType === 'round-trip' && booking.returnFlight && ` (Round-trip)`}
                                             </td>
                                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
                                                 {booking.outboundFlight ? new Date(booking.outboundFlight.departureTime).toLocaleDateString() : 'N/A'}
@@ -266,19 +441,36 @@ function AllBookings() {
                                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{booking.passengers.length}</td>
                                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{formatCurrency(booking.totalPrice)}</td>
                                             <td className="px-4 py-4 whitespace-nowrap text-sm">
-                                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                                    booking.bookingStatus === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                                                }`}>
-                                                    {booking.bookingStatus.charAt(0).toUpperCase() + booking.bookingStatus.slice(1)}
-                                                </span>
+                                                {getStatusPill(booking.bookingStatus, 'booking')}
+                                            </td>
+                                            <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                                {getStatusPill(booking.paymentStatus, 'payment')}
                                             </td>
                                             <td className="px-4 py-4 whitespace-nowrap text-left text-sm font-medium">
-                                                {! (booking.bookingStatus === 'cancelled') && (
+                                                {booking.paymentStatus === 'pending' && booking.bookingStatus === 'pending' && (
+                                                    <button
+                                                        onClick={() => handleConfirmPayment(booking._id, 'flight')}
+                                                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors mr-2"
+                                                        title="Manually confirm payment for this booking"
+                                                    >
+                                                        <CheckCircle size={14} className="mr-1" /> Confirm Payment
+                                                    </button>
+                                                )}
+                                                {booking.bookingStatus !== 'cancelled' ? (
                                                     <button
                                                         onClick={() => handleFlightCancel(booking._id)}
                                                         className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                                                        title="Cancel this flight booking"
                                                     >
                                                         <XCircle size={14} className="mr-1" /> Cancel
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleDeleteBooking(booking._id, 'flight')}
+                                                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-700 hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-700 transition-colors"
+                                                        title="Delete this flight booking permanently"
+                                                    >
+                                                        <Trash2 size={14} className="mr-1" /> Delete
                                                     </button>
                                                 )}
                                             </td>
@@ -312,8 +504,9 @@ function AllBookings() {
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rooms</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-out</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Price</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booking Status</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tr-lg">Actions</th>
                                     </tr>
                                 </thead>
@@ -328,19 +521,36 @@ function AllBookings() {
                                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(booking.checkOutDate).toLocaleDateString()}</td>
                                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{formatCurrency(booking.totalPrice)}</td>
                                             <td className="px-4 py-4 whitespace-nowrap text-sm">
-                                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                                    booking.bookingStatus === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                                                }`}>
-                                                    {booking.bookingStatus.charAt(0).toUpperCase() + booking.bookingStatus.slice(1)}
-                                                </span>
+                                                {getStatusPill(booking.bookingStatus, 'booking')}
+                                            </td>
+                                            <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                                {getStatusPill(booking.paymentStatus, 'payment')}
                                             </td>
                                             <td className="px-4 py-4 whitespace-nowrap text-left text-sm font-medium">
-                                                {! (booking.bookingStatus === 'cancelled') && (
+                                                {booking.paymentStatus === 'pending' && booking.bookingStatus === 'pending' && (
+                                                    <button
+                                                        onClick={() => handleConfirmPayment(booking._id, 'hotel')}
+                                                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors mr-2"
+                                                        title="Manually confirm payment for this booking"
+                                                    >
+                                                        <CheckCircle size={14} className="mr-1" /> Confirm Payment
+                                                    </button>
+                                                )}
+                                                {booking.bookingStatus !== 'cancelled' ? (
                                                     <button
                                                         onClick={() => handleHotelCancel(booking._id)}
                                                         className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                                                        title="Cancel this hotel booking"
                                                     >
                                                         <XCircle size={14} className="mr-1" /> Cancel
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleDeleteBooking(booking._id, 'hotel')}
+                                                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-700 hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-700 transition-colors"
+                                                        title="Delete this hotel booking permanently"
+                                                    >
+                                                        <Trash2 size={14} className="mr-1" /> Delete
                                                     </button>
                                                 )}
                                             </td>

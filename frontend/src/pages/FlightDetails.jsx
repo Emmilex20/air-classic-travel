@@ -1,9 +1,9 @@
-// frontend/src/pages/FlightDetails.jsx
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
+import { PaystackButton } from 'react-paystack'; // NEW: Import PaystackButton
 
 // Import icons from lucide-react
 import {
@@ -11,7 +11,7 @@ import {
     PlaneLanding,
     Calendar,
     Clock,
-    DollarSign, // Using DollarSign, but actual currency is Naira
+    DollarSign,
     Armchair,
     Users,
     Ticket,
@@ -19,14 +19,13 @@ import {
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
+const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY; // NEW: Get Paystack public key
 
-// NEW: Helper function for currency formatting
+// Helper function for currency formatting
 const formatCurrency = (amount) => {
-    // Assuming Nigerian Naira (NGN) and Nigerian locale for formatting
-    // You can change 'en-NG' to your desired locale and 'NGN' to your currency code
     return new Intl.NumberFormat('en-NG', {
         style: 'currency',
-        currency: 'NGN', // Using NGN as per your previous code's '₦' symbol
+        currency: 'NGN',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(amount);
@@ -46,15 +45,20 @@ function FlightDetails() {
     const [bookingType, setBookingType] = useState('one-way');
     const [totalPrice, setTotalPrice] = useState(0);
 
+    // NEW: Paystack related states
+    const [paystackConfig, setPaystackConfig] = useState(null);
+    const [showPaystackButton, setShowPaystackButton] = useState(false);
+    const [bookingInProgress, setBookingInProgress] = useState(false); // To prevent double clicks/submissions
+
     useEffect(() => {
         const fetchFlightDetails = async () => {
             try {
                 setLoading(true);
                 setError('');
-                
+
                 const response = await axios.get(`${API_URL}/flights/${id}`);
                 setOutboundFlight(response.data);
-                
+
                 const params = new URLSearchParams(location.search);
                 const returnFlightId = params.get('returnFlightId');
 
@@ -62,9 +66,11 @@ function FlightDetails() {
                     setBookingType('round-trip');
                     const returnResponse = await axios.get(`${API_URL}/flights/${returnFlightId}`);
                     setReturnFlight(returnResponse.data);
+                    // Initial total price calculation
                     setTotalPrice(response.data.price + returnResponse.data.price);
                 } else {
                     setBookingType('one-way');
+                    // Initial total price calculation
                     setTotalPrice(response.data.price);
                 }
 
@@ -83,11 +89,28 @@ function FlightDetails() {
         fetchFlightDetails();
     }, [id, location.search]);
 
-    const handleBookingSubmit = async (e) => {
+    // Recalculate total price when numberOfSeats changes
+    useEffect(() => {
+        if (outboundFlight) {
+            let calculatedPrice = outboundFlight.price * numberOfSeats;
+            if (bookingType === 'round-trip' && returnFlight) {
+                calculatedPrice += returnFlight.price * numberOfSeats;
+            }
+            setTotalPrice(calculatedPrice);
+        }
+    }, [numberOfSeats, outboundFlight, returnFlight, bookingType]);
+
+
+    const handleBookingInitiate = async (e) => {
         e.preventDefault();
 
         if (!user || !token) {
             toast.error('You must be logged in to book a flight.');
+            return;
+        }
+
+        if (bookingInProgress) {
+            toast.info('Booking process already initiated. Please wait or complete payment.');
             return;
         }
 
@@ -108,12 +131,14 @@ function FlightDetails() {
             return;
         }
 
+        // Basic passenger data: For a real app, you'd collect actual passenger details here.
+        // For this example, we're using dummy data derived from the logged-in user.
         const passengersData = Array.from({ length: requestedSeats }).map((_, index) => ({
             firstName: user.firstName || `Guest${index + 1}`,
             lastName: user.lastName || 'Passenger',
-            gender: 'Other',
-            dateOfBirth: new Date('1990-01-01').toISOString(),
-            nationality: user.address?.country || 'Unknown',
+            gender: 'Other', // Placeholder
+            dateOfBirth: new Date('1990-01-01').toISOString(), // Placeholder
+            nationality: user.address?.country || 'Unknown', // Placeholder
         }));
 
         const bookingPayload = {
@@ -126,7 +151,8 @@ function FlightDetails() {
             bookingPayload.returnFlightId = returnFlight._id;
         }
 
-        console.log("Booking Data being sent:", bookingPayload);
+        setBookingInProgress(true); // Disable booking form
+        toast.info('Initiating booking. Please wait for payment prompt...');
 
         try {
             const config = {
@@ -138,37 +164,110 @@ function FlightDetails() {
 
             const response = await axios.post(`${API_URL}/bookings`, bookingPayload, config);
 
-            toast.success(`Booking successful! Your booking ID is: ${response.data._id.substring(0, 8)}...`);
+            // Assuming the backend returns the necessary Paystack details
+            const { paystackReference, totalAmount, userEmail, booking } = response.data;
 
-            setOutboundFlight(prev => ({
-                ...prev,
-                availableSeats: prev.availableSeats - requestedSeats
-            }));
-            if (bookingType === 'round-trip' && returnFlight) {
-                setReturnFlight(prev => ({
+            if (!paystackReference || !totalAmount || !userEmail || !booking) {
+                throw new Error('Backend did not return required payment details.');
+            }
+
+            setPaystackConfig({
+                reference: paystackReference,
+                email: userEmail,
+                amount: Math.round(totalAmount * 100), // Amount in kobo
+                publicKey: PAYSTACK_PUBLIC_KEY,
+                metadata: {
+                    bookingId: booking._id, // Pass booking ID to Paystack for webhook
+                    bookingType: 'flight', // Differentiate booking types in webhook
+                },
+            });
+
+            setShowPaystackButton(true); // Show the Paystack button
+
+        } catch (err) {
+            setBookingInProgress(false); // Re-enable form on error
+            console.error('Error initiating booking:', err);
+            const errMsg = err.response && err.response.data && err.response.data.message
+                ? err.response.data.message
+                : 'Failed to initiate booking. Please try again.';
+            toast.error(errMsg);
+        }
+    };
+
+    // NEW: Paystack success handler
+    const handlePaystackSuccess = async (response) => {
+        console.log('Paystack Success Response:', response);
+        setShowPaystackButton(false); // Hide the Paystack button
+        setBookingInProgress(false); // Re-enable form
+
+        if (!response || !response.reference || !paystackConfig) {
+            toast.error('Paystack callback error: Missing response or config.');
+            return;
+        }
+
+        try {
+            toast.info('Verifying payment... Do not close this window.');
+            const config = {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            };
+
+            const verificationResponse = await axios.post(
+                `${API_URL}/payments/verify`,
+                {
+                    reference: response.reference,
+                    bookingId: paystackConfig.metadata.bookingId,
+                    bookingType: paystackConfig.metadata.bookingType,
+                },
+                config
+            );
+
+            if (verificationResponse.status === 200) {
+                toast.success('Payment confirmed and flight booked successfully!');
+                // Update local state for available seats immediately (optimistic update)
+                const requestedSeats = parseInt(numberOfSeats, 10);
+                setOutboundFlight(prev => ({
                     ...prev,
                     availableSeats: prev.availableSeats - requestedSeats
                 }));
+                if (bookingType === 'round-trip' && returnFlight) {
+                    setReturnFlight(prev => ({
+                        ...prev,
+                        availableSeats: prev.availableSeats - requestedSeats
+                    }));
+                }
+                setNumberOfSeats(1); // Reset seats
+                
+                setTimeout(() => {
+                    navigate('/my-bookings');
+                }, 2000);
+            } else {
+                toast.warn('Payment verified, but booking status could not be confirmed. Please check your bookings or contact support.');
             }
-            setNumberOfSeats(1);
 
-            setTimeout(() => {
-                navigate('/my-bookings');
-            }, 2000);
-
-        } catch (err) {
-            console.error('Error creating booking:', err);
-            const errMsg = err.response && err.response.data && err.response.data.message
-                ? err.response.data.message
-                : 'Failed to create booking. Please try again.';
+        } catch (error) {
+            console.error('Error during payment verification:', error);
+            const errMsg = error.response && error.response.data && error.response.data.message
+                ? error.response.data.message
+                : 'Payment verification failed. Please check your bookings or contact support.';
             toast.error(errMsg);
-
-            if (err.response) {
-                console.error('Server Response Data (detailed):', err.response.data);
-                console.error('Server Response Status (detailed):', err.response.status);
-            }
+            // Consider what happens if verification fails - user might need to re-book or contact support
+            // You might want to navigate to a "payment failed" page or keep them here
         }
     };
+
+    // NEW: Paystack close handler
+    const handlePaystackClose = () => {
+        console.log('Paystack payment modal closed by user.');
+        setShowPaystackButton(false); // Hide button
+        setBookingInProgress(false); // Re-enable form
+        toast.info('Payment cancelled by user. Please try again if you wish to book.');
+        // At this point, the backend booking is still in 'pending' status.
+        // It will either expire, or an admin needs to cancel it manually if not paid.
+    };
+
 
     if (loading) {
         return (
@@ -231,17 +330,17 @@ function FlightDetails() {
                 <h3 className="text-3xl font-bold text-gray-800 mb-6 text-center">
                     {bookingType === 'round-trip' ? 'Complete Your Round Trip Booking' : 'Book Your One-Way Flight'}
                 </h3>
-                
+
                 <div className="flex justify-center items-center mb-6">
                     <p className="text-4xl font-extrabold text-green-700 flex items-center">
                         <DollarSign size={32} className="mr-3 text-green-600" />
-                        Total Price: {formatCurrency(totalPrice)} {/* Applied formatting */}
+                        Total Price: {formatCurrency(totalPrice)}
                     </p>
                 </div>
 
                 {user ? (
                     currentAvailableSeats > 0 ? (
-                        <form onSubmit={handleBookingSubmit} className="space-y-6 max-w-md mx-auto">
+                        <form onSubmit={handleBookingInitiate} className="space-y-6 max-w-md mx-auto">
                             <div>
                                 <label htmlFor="numberOfSeats" className="block text-gray-700 text-lg font-bold mb-2">
                                     <Users size={20} className="inline-block mr-2" /> Number of Seats:
@@ -256,16 +355,37 @@ function FlightDetails() {
                                     max={currentAvailableSeats}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 text-lg transition duration-200"
                                     required
+                                    disabled={bookingInProgress} // Disable input when booking is in progress
                                 />
                                 <p className="text-sm text-gray-500 mt-1">Available seats: {currentAvailableSeats}</p>
                             </div>
-                            <button
-                                type="submit"
-                                className="w-full flex items-center justify-center py-3 px-6 border border-transparent rounded-lg shadow-lg text-xl font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:scale-105 active:scale-95 group"
-                            >
-                                <Ticket size={24} className="mr-3 group-hover:rotate-6 transition-transform" />
-                                Book Now
-                            </button>
+                            {!showPaystackButton ? (
+                                <button
+                                    type="submit"
+                                    className="w-full flex items-center justify-center py-3 px-6 border border-transparent rounded-lg shadow-lg text-xl font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:scale-105 active:scale-95 group"
+                                    disabled={bookingInProgress || currentAvailableSeats === 0}
+                                >
+                                    <Ticket size={24} className="mr-3 group-hover:rotate-6 transition-transform" />
+                                    {bookingInProgress ? 'Processing...' : 'Proceed to Payment'}
+                                </button>
+                            ) : (
+                                <div className="text-center">
+                                    {paystackConfig && (
+                                        <PaystackButton
+                                            className="w-full flex items-center justify-center py-3 px-6 border border-transparent rounded-lg shadow-lg text-xl font-semibold text-white bg-gradient-to-r from-green-600 to-teal-700 hover:from-green-700 hover:to-teal-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 transform hover:scale-105 active:scale-95 group"
+                                            {...paystackConfig}
+                                            onSuccess={handlePaystackSuccess}
+                                            onClose={handlePaystackClose}
+                                        >
+                                            <DollarSign size={24} className="mr-3 group-hover:rotate-6 transition-transform" />
+                                            Pay Now {formatCurrency(totalPrice)}
+                                        </PaystackButton>
+                                    )}
+                                    <p className="mt-2 text-sm text-gray-600">
+                                        A payment popup will appear. If not, click the "Pay Now" button.
+                                    </p>
+                                </div>
+                            )}
                         </form>
                     ) : (
                         <p className="text-center text-red-600 text-xl font-semibold py-4 bg-red-50 rounded-lg border border-red-200 shadow-sm">
@@ -278,7 +398,7 @@ function FlightDetails() {
                     </p>
                 )}
             </div>
-            
+
             {/* Back to Flights Button */}
             <div className="text-center mt-12">
                 <Link to="/flights" className="inline-flex items-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
@@ -289,27 +409,27 @@ function FlightDetails() {
     );
 }
 
-// Reusable Flight Detail Card Component
+// Reusable Flight Detail Card Component (remains unchanged)
 const FlightDetailCard = ({ flight, title, isOutbound }) => (
     <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-8 transform transition-all duration-300 hover:scale-[1.005] hover:shadow-2xl">
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
             <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-            <img src={`https://www.google.com/s2/favicons?domain=${flight.airline.toLowerCase().replace(/\s/g, '')}.com&sz=64`} alt={flight.airline} className="h-10 w-10 rounded-full border border-gray-200 p-1" onError={(e)=>{e.target.onerror=null; e.target.src=`https://placehold.co/64x64/E0E7FF/6366F1?text=${flight.airline.substring(0,1)}`}}/>
+            <img src={`https://www.google.com/s2/favicons?domain=${flight.airline.toLowerCase().replace(/\s/g, '')}.com&sz=64`} alt={flight.airline} className="h-10 w-10 rounded-full border border-gray-200 p-1" onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/64x64/E0E7FF/6366F1?text=${flight.airline.substring(0, 1)}` }} />
         </div>
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-lg text-gray-700">
             <DetailItem icon={isOutbound ? PlaneTakeoff : PlaneLanding} label="Airport" value={`${flight.departureAirport} to ${flight.arrivalAirport}`} />
             <DetailItem icon={Calendar} label="Date" value={new Date(flight.departureTime).toLocaleDateString()} />
             <DetailItem icon={Clock} label="Departure Time" value={new Date(flight.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
             <DetailItem icon={Clock} label="Arrival Time" value={new Date(flight.arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
-            <DetailItem icon={DollarSign} label="Price" value={formatCurrency(flight.price)} /> {/* Applied formatting */}
+            <DetailItem icon={DollarSign} label="Price" value={formatCurrency(flight.price)} />
             <DetailItem icon={Armchair} label="Seats Available" value={flight.availableSeats} />
             <DetailItem icon={Users} label="Capacity" value={flight.capacity} />
         </div>
     </div>
 );
 
-// Helper component for consistent detail item display
+// Helper component for consistent detail item display (remains unchanged)
 const DetailItem = ({ icon: Icon, label, value }) => (
     <div className="flex items-center p-2 rounded-md transition-colors duration-200 hover:bg-gray-50">
         {Icon && <Icon size={20} className="mr-3 text-indigo-500" />}

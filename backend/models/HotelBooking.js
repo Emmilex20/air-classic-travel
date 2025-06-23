@@ -1,4 +1,3 @@
-// backend/models/HotelBooking.js
 const mongoose = require('mongoose');
 
 const hotelBookingSchema = mongoose.Schema(
@@ -33,8 +32,18 @@ const hotelBookingSchema = mongoose.Schema(
         },
         bookingStatus: {
             type: String,
-            enum: ['pending', 'confirmed', 'cancelled'],
-            default: 'confirmed', // Assuming immediate confirmation for simplicity
+            enum: ['pending', 'confirmed', 'cancelled', 'completed'], // Added 'completed' for hotel stay completion
+            default: 'pending', // Initial status before payment
+        },
+        paymentStatus: { // Updated enum values
+            type: String,
+            enum: ['pending', 'completed', 'failed', 'refunded'],
+            default: 'pending', // Payment status will be pending initially
+        },
+        paystackReference: { // NEW: Add Paystack reference
+            type: String,
+            unique: true,
+            sparse: true, // Allows null values, but unique for non-nulls
         },
     },
     {

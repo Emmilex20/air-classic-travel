@@ -4,7 +4,9 @@ const {
     createHotelBooking,
     getMyHotelBookings,
     getAllHotelBookings,
-    cancelHotelBooking
+    cancelHotelBooking,
+    // Add the delete function here
+    deleteHotelBookingAdmin // <-- NEW: Import the admin delete function
 } = require('../controllers/hotelBookingController');
 const { protect, admin } = require('../middleware/authMiddleware'); // Import protect and admin middleware
 
@@ -23,5 +25,9 @@ router.get('/', protect, admin, getAllHotelBookings); // This route handles GET 
 
 // Route to cancel a booking (accessible by user who made it or admin)
 router.put('/:id/cancel', protect, cancelHotelBooking);
+
+// NEW: Route for admin to delete a hotel booking
+// Frontend expects DELETE /api/hotel-bookings/admin/:id
+router.delete('/admin/:id', protect, admin, deleteHotelBookingAdmin); // <-- NEW: Route for deleting by admin
 
 module.exports = router;

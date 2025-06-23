@@ -4,21 +4,23 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
+import { PaystackButton } from 'react-paystack'; // NEW: Import PaystackButton
 
 // Import icons from lucide-react for enhanced styling
 import {
-    MapPin,       // For location/address
-    Star,         // For star rating
-    DollarSign,   // For price per night
-    BedDouble,    // For rooms
-    Calendar,     // For dates
-    Users,        // For number of rooms input icon
-    BookOpen,     // For booking button
-    ArrowRight,   // For back button
-    Hotel         // General hotel icon for heading/placeholder
+    MapPin,         // For location/address
+    Star,           // For star rating
+    DollarSign,     // For price per night
+    BedDouble,      // For rooms
+    Calendar,       // For dates
+    Users,          // For number of rooms input icon
+    BookOpen,       // For booking button
+    ArrowRight,     // For back button
+    Hotel           // General hotel icon for heading/placeholder
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
+const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY; // NEW: Get Paystack public key
 
 // Helper function for currency formatting (consistent with FlightList & FlightDetails)
 const formatCurrency = (amount) => {
@@ -43,9 +45,15 @@ function HotelDetails() {
     const [numberOfRooms, setNumberOfRooms] = useState(1);
     const [checkInDate, setCheckInDate] = useState('');
     const [checkOutDate, setCheckOutDate] = useState('');
+    const [totalBookingPrice, setTotalBookingPrice] = useState(0); // NEW: State for total booking price
 
     // State for active image in gallery
     const [activeImage, setActiveImage] = useState('');
+
+    // NEW: Paystack related states
+    const [paystackConfig, setPaystackConfig] = useState(null);
+    const [showPaystackButton, setShowPaystackButton] = useState(false);
+    const [bookingInProgress, setBookingInProgress] = useState(false); // To prevent double clicks/submissions
 
     useEffect(() => {
         const fetchHotelDetails = async () => {
@@ -72,10 +80,29 @@ function HotelDetails() {
         fetchHotelDetails();
     }, [id]);
 
+    // NEW: Calculate total booking price whenever relevant state changes
+    useEffect(() => {
+        if (hotel && checkInDate && checkOutDate && numberOfRooms > 0) {
+            const checkIn = new Date(checkInDate);
+            const checkOut = new Date(checkOutDate);
+            const diffTime = Math.abs(checkOut - checkIn);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Calculate number of nights
+
+            if (diffDays > 0) {
+                setTotalBookingPrice(hotel.pricePerNight * numberOfRooms * diffDays);
+            } else {
+                setTotalBookingPrice(0);
+            }
+        } else {
+            setTotalBookingPrice(0);
+        }
+    }, [hotel, numberOfRooms, checkInDate, checkOutDate]);
+
+
     // Function to calculate min/max dates for date inputs
     const getMinCheckInDate = () => {
         const today = new Date();
-        today.setDate(today.getDate()); // Today's date or later
+        today.setHours(0, 0, 0, 0); // Normalize to start of today
         return today.toISOString().split('T')[0];
     };
 
@@ -86,13 +113,18 @@ function HotelDetails() {
         return checkIn.toISOString().split('T')[0];
     };
 
-    const handleBookingSubmit = async (e) => {
+    // NEW: Renamed from handleBookingSubmit to handleBookingInitiate
+    const handleBookingInitiate = async (e) => {
         e.preventDefault();
 
-        // Client-side validation and authentication check
         if (!user || !token) {
             toast.error('You must be logged in to book a hotel.');
-            navigate('/login'); // Redirect to login
+            navigate('/login');
+            return;
+        }
+
+        if (bookingInProgress) {
+            toast.info('Booking process already initiated. Please wait or complete payment.');
             return;
         }
 
@@ -120,13 +152,15 @@ function HotelDetails() {
             return;
         }
 
-        // Ensure check-in is not in the past relative to current time
         const now = new Date();
-        now.setHours(0,0,0,0); // Reset time for comparison
+        now.setHours(0, 0, 0, 0);
         if (checkIn < now) {
             toast.error('Check-in date cannot be in the past.');
             return;
         }
+        
+        setBookingInProgress(true); // Disable booking form
+        toast.info('Initiating booking. Please wait for payment prompt...');
 
         try {
             const config = {
@@ -138,36 +172,109 @@ function HotelDetails() {
             const bookingData = {
                 hotelId: hotel._id,
                 numberOfRooms: roomsRequested,
-                checkInDate: checkIn.toISOString(), // Send as ISO string
-                checkOutDate: checkOut.toISOString(), // Send as ISO string
+                checkInDate: checkIn.toISOString(),
+                checkOutDate: checkOut.toISOString(),
             };
 
             const response = await axios.post(`${API_URL}/hotel-bookings`, bookingData, config);
 
-            toast.success(`Hotel booking successful! Your booking ID is: ${response.data._id.substring(0, 8)}...`);
+            // Assuming the backend returns the necessary Paystack details (reference, total amount, user email, booking object)
+            const { paystackReference, totalAmount, userEmail, booking } = response.data;
 
-            // Optimistically update available rooms on the UI
-            setHotel(prevHotel => ({
-                ...prevHotel,
-                availableRooms: prevHotel.availableRooms - roomsRequested
-            }));
-            setNumberOfRooms(1); // Reset form field
-            setCheckInDate(''); // Reset dates
-            setCheckOutDate('');
+            if (!paystackReference || !totalAmount || !userEmail || !booking) {
+                throw new Error('Backend did not return required payment details for Paystack.');
+            }
 
-            // Redirect user to their bookings page after a short delay
-            setTimeout(() => {
-                navigate('/my-bookings');
-            }, 2000);
+            setPaystackConfig({
+                reference: paystackReference,
+                email: userEmail,
+                amount: Math.round(totalAmount * 100), // Amount in kobo
+                publicKey: PAYSTACK_PUBLIC_KEY,
+                metadata: {
+                    bookingId: booking._id, // Pass booking ID to Paystack for webhook
+                    bookingType: 'hotel', // Differentiate booking types in webhook
+                },
+            });
+
+            setShowPaystackButton(true); // Show the Paystack button
 
         } catch (err) {
-            console.error('Error creating hotel booking:', err);
+            setBookingInProgress(false); // Re-enable form on error
+            console.error('Error initiating hotel booking:', err);
             const errMsg = err.response && err.response.data && err.response.data.message
                 ? err.response.data.message
-                : 'Failed to create hotel booking. Please try again.';
+                : 'Failed to initiate hotel booking. Please try again.';
             toast.error(errMsg);
         }
     };
+
+    // NEW: Paystack success handler
+    const handlePaystackSuccess = async (response) => {
+        console.log('Paystack Success Response:', response);
+        setShowPaystackButton(false); // Hide the Paystack button
+        setBookingInProgress(false); // Re-enable form
+
+        if (!response || !response.reference || !paystackConfig) {
+            toast.error('Paystack callback error: Missing response or config.');
+            return;
+        }
+
+        try {
+            toast.info('Verifying payment... Do not close this window.');
+            const config = {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            };
+
+            const verificationResponse = await axios.post(
+                `${API_URL}/payments/verify`,
+                {
+                    reference: response.reference,
+                    bookingId: paystackConfig.metadata.bookingId,
+                    bookingType: paystackConfig.metadata.bookingType,
+                },
+                config
+            );
+
+            if (verificationResponse.status === 200) {
+                toast.success('Payment confirmed and hotel booked successfully!');
+                // Optimistically update available rooms on the UI
+                const roomsRequested = parseInt(numberOfRooms, 10);
+                setHotel(prevHotel => ({
+                    ...prevHotel,
+                    availableRooms: prevHotel.availableRooms - roomsRequested
+                }));
+                setNumberOfRooms(1); // Reset form field
+                setCheckInDate(''); // Reset dates
+                setCheckOutDate('');
+
+                setTimeout(() => {
+                    navigate('/my-bookings');
+                }, 2000);
+            } else {
+                toast.warn('Payment verified, but booking status could not be confirmed. Please check your bookings or contact support.');
+            }
+
+        } catch (error) {
+            console.error('Error during payment verification:', error);
+            const errMsg = error.response && error.response.data && error.response.data.message
+                ? error.response.data.message
+                : 'Payment verification failed. Please check your bookings or contact support.';
+            toast.error(errMsg);
+        }
+    };
+
+    // NEW: Paystack close handler
+    const handlePaystackClose = () => {
+        console.log('Paystack payment modal closed by user.');
+        setShowPaystackButton(false); // Hide button
+        setBookingInProgress(false); // Re-enable form
+        toast.info('Payment cancelled by user. Please try again if you wish to book.');
+        // At this point, the backend booking is still in 'pending' status.
+    };
+
 
     // --- Loading, Error, and Not Found States ---
     if (loading) {
@@ -204,7 +311,7 @@ function HotelDetails() {
     return (
         <div className="container mx-auto p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-teal-50 to-emerald-100 min-h-[calc(100vh-140px)]">
             <h1 className="text-4xl font-extrabold text-gray-800 mb-8 text-center animate-fade-in-down flex items-center justify-center">
-                <Hotel size={40} className="mr-3 text-teal-600"/> {hotel.name}
+                <Hotel size={40} className="mr-3 text-teal-600" /> {hotel.name}
             </h1>
 
             {/* Hotel Information Card */}
@@ -236,7 +343,7 @@ function HotelDetails() {
                         )}
                     </div>
                 )}
-                
+
                 <h2 className="text-3xl font-bold text-indigo-700 mb-4">{hotel.name}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-lg text-gray-700">
                     <DetailItem icon={MapPin} label="Location" value={hotel.location} />
@@ -273,10 +380,19 @@ function HotelDetails() {
             {/* Booking Form Section */}
             <div className="bg-white rounded-xl shadow-2xl p-8 mt-8 border border-teal-200 transform transition-transform duration-300 hover:scale-[1.005]">
                 <h3 className="text-3xl font-bold text-gray-800 mb-6 text-center">Book Your Stay</h3>
-                
+
+                {hotel.availableRooms > 0 && totalBookingPrice > 0 && (
+                    <div className="flex justify-center items-center mb-6">
+                        <p className="text-4xl font-extrabold text-green-700 flex items-center">
+                            <DollarSign size={32} className="mr-3 text-green-600" />
+                            Total Price: {formatCurrency(totalBookingPrice)}
+                        </p>
+                    </div>
+                )}
+
                 {user ? (
                     hotel.availableRooms > 0 ? (
-                        <form onSubmit={handleBookingSubmit} className="space-y-6 max-w-md mx-auto">
+                        <form onSubmit={handleBookingInitiate} className="space-y-6 max-w-md mx-auto">
                             <div>
                                 <label htmlFor="numberOfRooms" className="block text-gray-700 text-lg font-bold mb-2">
                                     <Users size={20} className="inline-block mr-2 text-blue-500" /> Number of Rooms:
@@ -291,6 +407,7 @@ function HotelDetails() {
                                     max={hotel.availableRooms}
                                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 text-lg transition duration-200"
                                     required
+                                    disabled={bookingInProgress} // Disable input when booking is in progress
                                 />
                                 <p className="text-sm text-gray-500 mt-1">Available rooms: {hotel.availableRooms}</p>
                             </div>
@@ -307,6 +424,7 @@ function HotelDetails() {
                                     min={getMinCheckInDate()}
                                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 text-lg transition duration-200"
                                     required
+                                    disabled={bookingInProgress} // Disable input when booking is in progress
                                 />
                             </div>
                             <div>
@@ -322,15 +440,36 @@ function HotelDetails() {
                                     min={getMinCheckOutDate()}
                                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 text-lg transition duration-200"
                                     required
+                                    disabled={bookingInProgress} // Disable input when booking is in progress
                                 />
                             </div>
-                            <button
-                                type="submit"
-                                className="w-full flex items-center justify-center py-3 px-6 border border-transparent rounded-lg shadow-lg text-xl font-semibold text-white bg-gradient-to-r from-teal-600 to-emerald-700 hover:from-teal-700 hover:to-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all duration-300 transform hover:scale-105 active:scale-95 group"
-                            >
-                                <BookOpen size={24} className="mr-3 group-hover:rotate-6 transition-transform" />
-                                Book Now
-                            </button>
+                            {!showPaystackButton ? (
+                                <button
+                                    type="submit"
+                                    className="w-full flex items-center justify-center py-3 px-6 border border-transparent rounded-lg shadow-lg text-xl font-semibold text-white bg-gradient-to-r from-teal-600 to-emerald-700 hover:from-teal-700 hover:to-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-all duration-300 transform hover:scale-105 active:scale-95 group"
+                                    disabled={bookingInProgress || hotel.availableRooms === 0 || !checkInDate || !checkOutDate || numberOfRooms <= 0}
+                                >
+                                    <BookOpen size={24} className="mr-3 group-hover:rotate-6 transition-transform" />
+                                    {bookingInProgress ? 'Processing...' : 'Proceed to Payment'}
+                                </button>
+                            ) : (
+                                <div className="text-center">
+                                    {paystackConfig && (
+                                        <PaystackButton
+                                            className="w-full flex items-center justify-center py-3 px-6 border border-transparent rounded-lg shadow-lg text-xl font-semibold text-white bg-gradient-to-r from-green-600 to-teal-700 hover:from-green-700 hover:to-teal-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-300 transform hover:scale-105 active:scale-95 group"
+                                            {...paystackConfig}
+                                            onSuccess={handlePaystackSuccess}
+                                            onClose={handlePaystackClose}
+                                        >
+                                            <DollarSign size={24} className="mr-3 group-hover:rotate-6 transition-transform" />
+                                            Pay Now {formatCurrency(totalBookingPrice)}
+                                        </PaystackButton>
+                                    )}
+                                    <p className="mt-2 text-sm text-gray-600">
+                                        A payment popup will appear. If not, click the "Pay Now" button.
+                                    </p>
+                                </div>
+                            )}
                         </form>
                     ) : (
                         <p className="text-center text-red-600 text-xl font-semibold py-4 bg-red-50 rounded-lg border border-red-200 shadow-sm">

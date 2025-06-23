@@ -2,6 +2,8 @@
 const HotelBooking = require('../models/HotelBooking');
 const Hotel = require('../models/Hotel');
 const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
+const asyncHandler = require('express-async-handler');
 
 // Helper function to validate MongoDB ObjectId
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -9,62 +11,73 @@ const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 // @desc    Create a new hotel booking
 // @route   POST /api/hotel-bookings
 // @access  Private (User)
-exports.createHotelBooking = async (req, res) => {
+exports.createHotelBooking = asyncHandler(async (req, res) => {
     const { hotelId, numberOfRooms, checkInDate, checkOutDate } = req.body;
-    const userId = req.user._id; // Get user ID from authenticated request
+    const userId = req.user._id;
 
     if (!hotelId || !numberOfRooms || !checkInDate || !checkOutDate) {
-        return res.status(400).json({ message: 'Please provide hotelId, numberOfRooms, checkInDate, and checkOutDate.' });
+        res.status(400);
+        throw new Error('Please provide hotelId, numberOfRooms, checkInDate, and checkOutDate.');
     }
 
     if (!isValidObjectId(hotelId)) {
-        return res.status(400).json({ message: 'Invalid Hotel ID format.' });
+        res.status(400);
+        throw new Error('Invalid Hotel ID format.');
     }
 
     const numRooms = parseInt(numberOfRooms, 10);
     if (isNaN(numRooms) || numRooms <= 0) {
-        return res.status(400).json({ message: 'Number of rooms must be a positive integer.' });
+        res.status(400);
+        throw new Error('Number of rooms must be a positive integer.');
     }
 
     const checkIn = new Date(checkInDate);
     const checkOut = new Date(checkOutDate);
 
     if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
-        return res.status(400).json({ message: 'Invalid check-in or check-out date format.' });
+        res.status(400);
+        throw new Error('Invalid check-in or check-out date format.');
     }
 
     if (checkIn >= checkOut) {
-        return res.status(400).json({ message: 'Check-out date must be after check-in date.' });
+        res.status(400);
+        throw new Error('Check-out date must be after check-in date.');
     }
 
-    // Optional: Prevent booking in the past
-    if (checkIn < new Date()) {
-        return res.status(400).json({ message: 'Check-in date cannot be in the past.' });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (checkIn < today) {
+        res.status(400);
+        throw new Error('Check-in date cannot be in the past.');
     }
 
+    let session;
     try {
-        // 1. Find the hotel
-        const hotel = await Hotel.findById(hotelId);
+        session = await mongoose.startSession();
+        session.startTransaction();
+
+        const hotel = await Hotel.findById(hotelId).session(session);
         if (!hotel) {
-            return res.status(404).json({ message: 'Hotel not found.' });
+            res.status(404);
+            throw new Error('Hotel not found.');
         }
 
-        // 2. Check room availability
         if (hotel.availableRooms < numRooms) {
-            return res.status(400).json({ message: `Not enough rooms available. Only ${hotel.availableRooms} rooms left.` });
+            res.status(400);
+            throw new Error(`Not enough rooms available. Only ${hotel.availableRooms} rooms left.`);
         }
 
-        // 3. Calculate total price
-        // Calculate number of nights
         const diffTime = Math.abs(checkOut.getTime() - checkIn.getTime());
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         if (diffDays === 0) {
-            return res.status(400).json({ message: 'Booking must be for at least one night.' });
+            res.status(400);
+            throw new Error('Booking must be for at least one night.');
         }
 
         const totalPrice = hotel.pricePerNight * numRooms * diffDays;
 
-        // 4. Create the booking
+        const paystackRef = `HTL-${uuidv4().substring(0, 8)}-${Date.now()}`;
+
         const newBooking = new HotelBooking({
             user: userId,
             hotel: hotelId,
@@ -72,96 +85,141 @@ exports.createHotelBooking = async (req, res) => {
             checkInDate: checkIn,
             checkOutDate: checkOut,
             totalPrice: totalPrice,
-            bookingStatus: 'confirmed', // Or 'pending' if you want a confirmation step
+            bookingStatus: 'pending',
+            paymentStatus: 'pending',
+            paystackReference: paystackRef,
         });
 
-        const createdBooking = await newBooking.save();
+        const createdBooking = await newBooking.save({ session });
 
-        // 5. Update hotel's available rooms
         hotel.availableRooms -= numRooms;
-        await hotel.save();
+        await hotel.save({ session });
 
-        res.status(201).json(createdBooking);
+        await session.commitTransaction();
+        session.endSession();
+
+        res.status(201).json({
+            message: 'Booking created. Proceed to payment.',
+            booking: createdBooking,
+            paystackReference: paystackRef,
+            totalAmount: totalPrice,
+            userEmail: req.user.email
+        });
 
     } catch (error) {
+        if (session) {
+            await session.abortTransaction();
+            session.endSession();
+        }
         console.error('Error creating hotel booking:', error);
-        res.status(500).json({ message: 'Server error creating hotel booking.', error: error.message });
+        throw error;
     }
-};
+});
 
 // @desc    Get all hotel bookings for the authenticated user
 // @route   GET /api/hotel-bookings/my-bookings
 // @access  Private (User)
-exports.getMyHotelBookings = async (req, res) => {
-    try {
-        const bookings = await HotelBooking.find({ user: req.user._id })
-                                            .populate('hotel', 'name location images'); // Populate hotel name, location, and images
-        res.status(200).json(bookings);
-    } catch (error) {
-        console.error('Error fetching user hotel bookings:', error);
-        res.status(500).json({ message: 'Server error fetching your hotel bookings.' });
-    }
-};
+exports.getMyHotelBookings = asyncHandler(async (req, res) => {
+    const bookings = await HotelBooking.find({ user: req.user._id })
+        .populate('hotel', 'name location images');
+    res.status(200).json(bookings);
+});
 
 // @desc    Get all hotel bookings (Admin only)
 // @route   GET /api/hotel-bookings
 // @access  Private (Admin)
-exports.getAllHotelBookings = async (req, res) => {
-    try {
-        // The `admin` middleware should already handle the authorization check,
-        // so no explicit `if (!req.user || !req.user.roles.includes('admin'))` is strictly needed here
-        // if this controller function is only ever called via the protected route.
-        const bookings = await HotelBooking.find()
-                                            .populate('user', 'username email') // Populate user details
-                                            .populate('hotel', 'name location'); // Populate hotel details
-        res.status(200).json(bookings);
-    } catch (error) {
-        console.error('Error fetching all hotel bookings:', error);
-        res.status(500).json({ message: 'Server error fetching all hotel bookings.' });
-    }
-};
-
+exports.getAllHotelBookings = asyncHandler(async (req, res) => {
+    const bookings = await HotelBooking.find()
+        .populate('user', 'username email')
+        .populate('hotel', 'name location');
+    res.status(200).json(bookings);
+});
 
 // @desc    Cancel a hotel booking
 // @route   PUT /api/hotel-bookings/:id/cancel
 // @access  Private (User/Admin)
-exports.cancelHotelBooking = async (req, res) => {
+exports.cancelHotelBooking = asyncHandler(async (req, res) => {
+    let session;
     try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+
         const bookingId = req.params.id;
-
         if (!isValidObjectId(bookingId)) {
-            return res.status(400).json({ message: 'Invalid Booking ID format.' });
+            res.status(400);
+            throw new Error('Invalid Booking ID format.');
         }
 
-        const booking = await HotelBooking.findById(bookingId);
-
+        const booking = await HotelBooking.findById(bookingId).session(session);
         if (!booking) {
-            return res.status(404).json({ message: 'Booking not found.' });
+            res.status(404);
+            throw new Error('Booking not found.');
         }
 
-        // Only the user who made the booking OR an admin can cancel
         if (booking.user.toString() !== req.user._id.toString() && !req.user.roles.includes('admin')) {
-            return res.status(403).json({ message: 'Not authorized to cancel this booking.' });
+            res.status(403);
+            throw new Error('Not authorized to cancel this booking.');
         }
 
         if (booking.bookingStatus === 'cancelled') {
-            return res.status(400).json({ message: 'Booking is already cancelled.' });
+            res.status(400);
+            throw new Error('Booking is already cancelled.');
         }
 
-        // Update booking status
+        if (booking.bookingStatus !== 'cancelled') {
+            const hotel = await Hotel.findById(booking.hotel).session(session);
+            if (hotel) {
+                hotel.availableRooms += booking.numberOfRooms;
+                await hotel.save({ session });
+            } else {
+                console.warn(`Hotel ${booking.hotel} not found for booking ${booking._id} during cancellation.`);
+            }
+        }
+
         booking.bookingStatus = 'cancelled';
-        await booking.save();
+        booking.paymentStatus = 'failed';
+        await booking.save({ session });
 
-        // Increase available rooms for the hotel
-        const hotel = await Hotel.findById(booking.hotel);
-        if (hotel) {
-            hotel.availableRooms += booking.numberOfRooms;
-            await hotel.save();
-        }
+        await session.commitTransaction();
+        session.endSession();
 
         res.status(200).json({ message: 'Booking cancelled successfully.', booking });
     } catch (error) {
+        if (session) {
+            await session.abortTransaction();
+            session.endSession();
+        }
         console.error('Error cancelling hotel booking:', error);
-        res.status(500).json({ message: 'Server error cancelling booking.' });
+        throw error;
     }
-};
+});
+
+// @desc    Delete a hotel booking (Admin only)
+// @route   DELETE /api/hotel-bookings/admin/:id
+// @access  Private/Admin
+exports.deleteHotelBookingAdmin = asyncHandler(async (req, res) => {
+    const bookingId = req.params.id;
+
+    if (!isValidObjectId(bookingId)) {
+        res.status(400);
+        throw new Error('Invalid Booking ID format.');
+    }
+
+    const booking = await HotelBooking.findById(bookingId);
+
+    if (!booking) {
+        res.status(404);
+        throw new Error('Hotel booking not found.');
+    }
+
+    // The 'admin' middleware already ensures only admins can reach this route.
+    // No need for explicit req.user.roles.includes('admin') check here unless
+    // you have more granular admin roles (e.g., 'superAdmin' vs 'editorAdmin').
+
+    await HotelBooking.deleteOne({ _id: bookingId });
+
+    res.status(200).json({ message: 'Hotel booking deleted successfully!', id: bookingId });
+});
+
+// Removed the redundant module.exports block at the end.
+// All functions are already exported via `exports.functionName = ...`

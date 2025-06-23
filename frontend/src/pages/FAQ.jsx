@@ -264,7 +264,7 @@ function FAQ() {
                 {/* Background Image/Overlay */}
                 <div
                     className="absolute inset-0 bg-cover bg-center"
-                    style={{ backgroundImage: `url('https://images.unsplash.com/photo-1517404215737-02e07172f3e8?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')` }}
+                    style={{ backgroundImage: `url('https://img.freepik.com/premium-photo/question-mark-blue-wall-background-faq-concept-image_157125-10031.jpg')` }}
                 >
                     <div className="absolute inset-0 bg-black opacity-60"></div>
                 </div>

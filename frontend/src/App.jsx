@@ -28,6 +28,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import UserManagement from './pages/UserManagement';
 import About from './pages/About';
+import Contact from './pages/Contact';
 
 // NEW IMPORT for All Bookings and All Payments
 import AllBookings from './pages/AllBookings';
@@ -53,6 +54,7 @@ function App() {
                         <Route path="/flights" element={<FlightList />} />
                         <Route path="/flights/:id" element={<FlightDetails />} />
                         <Route path="/about" element={<About />} />
+                        <Route path="/contact" element={<Contact />} />
 
                         {/* Hotel Public Routes */}
                         <Route path="/hotels" element={<HotelList />} />

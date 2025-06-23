@@ -1,5 +1,5 @@
 {
-  "framework": "react",
+  "framework": "react-router", 
   "buildCommand": "cd frontend && pnpm install --no-frozen-lockfile && pnpm run build",
   "outputDirectory": "frontend/dist",
   "installCommand": "pnpm install --store=node_modules/.pnpm-store",

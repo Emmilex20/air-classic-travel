@@ -58,7 +58,6 @@ function Footer() {
                             <li><Link to="/contact" className="hover:text-white transition-colors duration-200">Contact Us</Link></li>
                             <li><Link to="/privacy" className="hover:text-white transition-colors duration-200">Privacy Policy</Link></li>
                             <li><Link to="/terms" className="hover:text-white transition-colors duration-200">Terms & Conditions</Link></li>
-                            <li><Link to="/sitemap" className="hover:text-white transition-colors duration-200">Sitemap</Link></li>
                         </ul>
                     </div>
 

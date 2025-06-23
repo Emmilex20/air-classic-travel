@@ -33,6 +33,9 @@ import Blog from './pages/Blog';
 import BlogPostDetail from './pages/BlogPostDetail';
 import Careers from './pages/Careers';
 import ApplicationForm from './pages/ApplicationForm';
+import FAQ from './pages/FAQ';
+import Privacy from './pages/Privacy'; 
+import Terms from './pages/Terms'; 
 
 // NEW IMPORT for All Bookings and All Payments
 import AllBookings from './pages/AllBookings';
@@ -65,6 +68,9 @@ function App() {
                         <Route path="/apply/:jobId" element={<ApplicationForm />} /> {/* <--- NEW ROUTE */}
                             {/* You can also have a generic apply route for direct access or general inquiries */}
                         <Route path="/apply" element={<ApplicationForm />} />
+                        <Route path="/faq" element={<FAQ />} />
+                        <Route path="/privacy" element={<Privacy />} />
+                        <Route path="/terms" element={<Terms />} />
 
                         {/* Hotel Public Routes */}
                         <Route path="/hotels" element={<HotelList />} />

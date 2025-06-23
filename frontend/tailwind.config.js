@@ -1,12 +1,18 @@
+/* eslint-disable no-undef */
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        inter: ['Inter', 'sans-serif'], // Ensure Inter is defined if you're using it
+      },
+    },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'), // Add this line
+  ],
 }
-

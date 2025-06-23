@@ -1,8 +1,8 @@
 {
-  "framework": "react-router", 
-  "buildCommand": "cd frontend && pnpm install --no-frozen-lockfile && pnpm run build",
-  "outputDirectory": "frontend/dist",
-  "installCommand": "cd frontend && pnpm install --store=node_modules/.pnpm-store --no-frozen-lockfile",
+  "framework": "react-router",
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist",
+  "installCommand": "pnpm install --store=node_modules/.pnpm-store --no-frozen-lockfile",
   "rewrites": [
     {
       "source": "/(.*)",

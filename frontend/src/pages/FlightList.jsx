@@ -5,6 +5,9 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
 
+// Import the Spinner component
+import Spinner from '../components/Spinner'; // <--- NEW IMPORT
+
 // Import icons from lucide-react
 import {
     PlaneTakeoff,     // For departure airport
@@ -179,8 +182,9 @@ function FlightList() {
 
     if (loading) {
         return (
-            <div className="min-h-[calc(100vh-140px)] flex items-center justify-center bg-gray-100">
-                <p className="text-xl text-gray-600 animate-pulse">Loading amazing flights for you...</p>
+            <div className="min-h-[calc(100vh-140px)] flex items-center justify-center flex-col bg-gray-100"> {/* Added flex-col to stack spinner and text */}
+                <Spinner size="lg" color="indigo" /> {/* <--- Spinner added here */}
+                <p className="text-xl text-gray-600 mt-4 animate-pulse">Loading amazing flights for you...</p> {/* Added mt-4 for spacing */}
             </div>
         );
     }

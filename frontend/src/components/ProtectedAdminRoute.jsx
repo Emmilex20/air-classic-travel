@@ -3,6 +3,7 @@ import React, { useContext } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext'; // CORRECTED: Standard relative path
 import { toast } from 'react-toastify';
+import Spinner from '../components/Spinner';
 
 const ProtectedAdminRoute = () => {
     const { user, loading } = useContext(AuthContext); // Get user and loading state from context
@@ -11,7 +12,8 @@ const ProtectedAdminRoute = () => {
         // Still loading authentication status, don't render children yet
         return (
             <div className="min-h-[calc(100vh-140px)] flex items-center justify-center bg-gray-100">
-                <p className="text-xl text-gray-600">Checking permissions...</p>
+                <Spinner size="lg" color="indigo" />
+                <p className="text-xl text-gray-600 mt-4 animate-pulse">Checking permissions...</p>
             </div>
         );
     }

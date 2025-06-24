@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'; // Import Link 
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
+import Spinner from '../components/Spinner';
 
 // Import icons from lucide-react
 import {
@@ -162,8 +163,9 @@ function FlightForm() {
 
     if (loading) {
         return (
-            <div className="min-h-[calc(100vh-140px)] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-                <p className="text-xl text-gray-600 animate-pulse">Loading flight form...</p>
+            <div className="min-h-[calc(100vh-140px)] flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+                <Spinner size="lg" color="indigo" />
+                <p className="text-xl text-gray-600 mt-4 animate-pulse">Loading flight form...</p> {/* Changed mt-8 to mt-4 for better spacing */}
             </div>
         );
     }

@@ -1,13 +1,38 @@
 // frontend/src/pages/Home.jsx
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react'; // Import useState and useEffect
 import { Link } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext'; // To check if user is logged in
+import { AuthContext } from '../context/AuthContext';
+
+// Import the Spinner component
+import Spinner from '../components/Spinner';
 
 // Import icons for the "Why Choose Us" section
 import { Globe, ShieldCheck, HeartHandshake, Award, Search, Plane, Users } from 'lucide-react';
 
 function Home() {
     const { user } = useContext(AuthContext);
+    const [isLoading, setIsLoading] = useState(true); // State to manage loading
+
+    // Simulate a loading process when the component mounts
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setIsLoading(false); // Set loading to false after a delay
+        }, 1500); // Simulate 1.5 seconds of loading time
+
+        return () => clearTimeout(timer); // Clean up the timer
+    }, []);
+
+    // Conditionally render the spinner or the actual page content
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+                <div className="flex flex-col items-center p-8 bg-white rounded-lg shadow-xl">
+                    <Spinner size="lg" color="indigo" /> {/* Display the large indigo spinner */}
+                    <p className="mt-4 text-lg font-semibold text-gray-700">Loading your journey...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-[calc(100vh-140px)] flex flex-col bg-gray-50">
@@ -80,7 +105,7 @@ function Home() {
                             title="Effortless Search"
                             description="Intuitive and powerful search tools to find your perfect trip quickly."
                         />
-                         <FeatureCard
+                        <FeatureCard
                             icon={<Users size={48} className="text-teal-500 group-hover:translate-y-[-5px] transition-transform duration-300" />}
                             title="Personalized Experience"
                             description="Tailored recommendations and services to match your unique travel style."

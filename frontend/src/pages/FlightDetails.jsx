@@ -4,6 +4,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
 import { PaystackButton } from 'react-paystack'; // NEW: Import PaystackButton
+import Spinner from '../components/Spinner';
 
 // Import icons from lucide-react
 import {
@@ -271,8 +272,9 @@ function FlightDetails() {
 
     if (loading) {
         return (
-            <div className="min-h-[calc(100vh-140px)] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-                <p className="text-xl text-gray-600 animate-pulse">Fetching flight details...</p>
+            <div className="min-h-[calc(100vh-140px)] flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+                <Spinner size="lg" color="indigo" /> {/* <--- Spinner added here */}
+                <p className="text-xl text-gray-600 mt-4 animate-pulse">Fetching flight details...</p> {/* Added mt-4 for spacing */}
             </div>
         );
     }

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext'; // To get user roles and token
+import Spinner from '../components/Spinner';
 
 // Import icons from lucide-react for enhanced styling
 import {
@@ -121,7 +122,8 @@ function HotelList() {
     // --- Loading and Error States ---
     if (loading) {
         return (
-            <div className="min-h-[calc(100vh-140px)] flex items-center justify-center bg-gradient-to-br from-teal-50 to-emerald-100 p-4">
+            <div className="min-h-[calc(100vh-140px)] flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+                <Spinner size="lg" color="indigo" />
                 <p className="text-xl text-gray-600 animate-pulse">Searching for amazing hotels...</p>
             </div>
         );

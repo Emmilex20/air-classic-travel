@@ -3,6 +3,7 @@ import React, { useContext } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext'; // Path relative to ProtectedRoute.jsx
 import { toast } from 'react-toastify';
+import Spinner from '../components/Spinner';
 
 /**
  * A private route component that checks for user authentication and roles.
@@ -16,7 +17,8 @@ const ProtectedRoute = ({ allowedRoles }) => {
     if (loading) {
         return (
             <div className="min-h-[calc(100vh-140px)] flex items-center justify-center bg-gray-100">
-                <p className="text-xl text-gray-600">Checking authorization...</p>
+                <Spinner size="lg" color="indigo" />
+                <p className="text-xl text-gray-600 mt-4 animate-pulse">Checking authorization...</p>
             </div>
         );
     }

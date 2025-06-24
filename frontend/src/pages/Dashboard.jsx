@@ -3,6 +3,7 @@ import React, { useContext, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import Spinner from '../components/Spinner';
 
 // Import icons for dashboard links
 import {
@@ -37,7 +38,8 @@ function Dashboard() {
     if (authLoading) {
         return (
             <div className="min-h-[calc(100vh-140px)] flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-                <p className="text-xl text-gray-600 animate-pulse">Loading dashboard permissions...</p>
+                <Spinner size="lg" color="indigo" />
+                <p className="text-xl text-gray-600 mt-4 animate-pulse">Loading dashboard permissions...</p>
             </div>
         );
     }

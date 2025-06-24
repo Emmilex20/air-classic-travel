@@ -69,7 +69,7 @@ function About() {
                             <BookOpen size={36} className="text-blue-500 mr-3" /> Our Story
                         </h2>
                         <p className="text-lg text-gray-600 leading-relaxed">
-                            Founded in 2023 by a team of passionate travelers and tech enthusiasts, VoyageEase was born from a simple idea: travel planning should be effortless, enjoyable, and accessible to everyone. We recognized the complexities and frustrations often associated with booking flights and hotels, and set out to create a solution that prioritizes convenience, transparency, and a truly personalized experience.
+                            Founded in 2023 by a team of passionate travelers and tech enthusiasts, Air Classic Travel was born from a simple idea: travel planning should be effortless, enjoyable, and accessible to everyone. We recognized the complexities and frustrations often associated with booking flights and hotels, and set out to create a solution that prioritizes convenience, transparency, and a truly personalized experience.
                         </p>
                     </div>
 
@@ -79,7 +79,7 @@ function About() {
                                 What started as a small project to simplify our own travel needs quickly grew into a mission to empower fellow adventurers. We dedicated ourselves to building a robust platform that not only offers competitive prices and a vast selection but also provides intuitive tools and reliable support every step of the way.
                             </p>
                             <p>
-                                From our humble beginnings, we've remained committed to innovation, continuously refining our technology and expanding our partnerships to bring you the best travel options globally. VoyageEase isn't just a booking platform; it's a community built on the shared joy of discovering new horizons.
+                                From our humble beginnings, we've remained committed to innovation, continuously refining our technology and expanding our partnerships to bring you the best travel options globally. Air Classic Travel isn't just a booking platform; it's a community built on the shared joy of discovering new horizons.
                             </p>
                             <Link to="/contact" className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-semibold mt-4 transition-colors">
                                 Contact Our Team <ArrowRight size={18} className="ml-2" />
@@ -216,17 +216,17 @@ function About() {
                             <Quote size={36} className="text-purple-600 mr-3" /> What Our Users Say
                         </h2>
                         <p className="text-lg text-gray-600 leading-relaxed">
-                            Hear from the travelers who choose VoyageEase for their adventures.
+                            Hear from the travelers who choose Air Classic Travel for their adventures.
                         </p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <TestimonialCard
-                            quote="VoyageEase made booking my family vacation incredibly easy. The interface is clean, and customer support was exceptional!"
+                            quote="Air Classic Travel made booking my family vacation incredibly easy. The interface is clean, and customer support was exceptional!"
                             author="Sarah L."
                             rating={5}
                         />
                         <TestimonialCard
-                            quote="I travel frequently for business, and VoyageEase consistently finds me the best deals on flights and hotels without any hassle."
+                            quote="I travel frequently for business, and Air Classic Travel consistently finds me the best deals on flights and hotels without any hassle."
                             author="David M."
                             rating={5}
                         />
@@ -242,7 +242,7 @@ function About() {
                         Ready to Begin Your Next Adventure?
                     </h2>
                     <p className="text-lg opacity-90 mb-8 max-w-2xl mx-auto">
-                        Join thousands of happy travelers who trust VoyageEase for their flight and hotel bookings. Your journey starts here.
+                        Join thousands of happy travelers who trust Air Classic Travel for their flight and hotel bookings. Your journey starts here.
                     </p>
                     <Link
                         to="/register"

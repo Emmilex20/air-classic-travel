@@ -8,7 +8,8 @@ const {
     // Add the delete function here
     deleteHotelBookingAdmin // <-- NEW: Import the admin delete function
 } = require('../controllers/hotelBookingController');
-const { protect, admin } = require('../middleware/authMiddleware'); // Import protect and admin middleware
+// CORRECTED: Import 'authorize' instead of 'admin'
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -21,13 +22,13 @@ router.get('/my-bookings', protect, getMyHotelBookings);
 
 // Route for admin to get all hotel bookings
 // Frontend's AllBookings.jsx expects GET /api/hotel-bookings for all hotel bookings (admin-protected)
-router.get('/', protect, admin, getAllHotelBookings); // This route handles GET /api/hotel-bookings
+router.get('/', protect, authorize(['admin']), getAllHotelBookings); // Corrected to use authorize(['admin'])
 
 // Route to cancel a booking (accessible by user who made it or admin)
 router.put('/:id/cancel', protect, cancelHotelBooking);
 
 // NEW: Route for admin to delete a hotel booking
 // Frontend expects DELETE /api/hotel-bookings/admin/:id
-router.delete('/admin/:id', protect, admin, deleteHotelBookingAdmin); // <-- NEW: Route for deleting by admin
+router.delete('/admin/:id', protect, authorize(['admin']), deleteHotelBookingAdmin); // Corrected to use authorize(['admin'])
 
-module.exports = router;
+module.exports = router; // Export the router

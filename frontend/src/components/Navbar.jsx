@@ -95,18 +95,21 @@ function Navbar() {
             <div className="container mx-auto flex flex-col md:flex-row justify-between items-center px-4">
                 {/* Brand/Logo and Mobile Menu Toggle */}
                 <div className="flex justify-between items-center w-full md:w-auto">
-                    <Link to="/" className="flex items-center text-2xl font-extrabold text-white group transform transition-transform duration-300 hover:scale-105" onClick={closeAllNavElements}>
-                        {/* SVG Logo - A simple plane icon */}
-                        <svg
-                            xmlns="https://svgsilh.com/svg_v2/3370913.svg"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
-                            className="w-8 h-8 mr-2 text-indigo-200 group-hover:text-white transition-colors duration-300"
-                        >
-                            <path d="M2.28 17.56L1.13 14a1 1 0 0 1 .46-1.3l.08-.04c.14-.07 1.4-.66 2.37-1.12.18-.08.35-.15.53-.22 2.72-1.04 4.58-1.57 6.43-1.6V8.12a1 1 0 0 1 .29-.71l3.52-3.53a1 1 0 0 1 1.42 0l1.77 1.76a1 1 0 0 1 0 1.41L15.8 9.71a1 1 0 0 1-.71.29H13.6c-.03 1.25-.09 2.53-.18 3.8-.08 1-.22 2-.4 2.94-.17.91-.38 1.8-.62 2.65-.24.8-.52 1.56-.84 2.27a.99.99 0 0 1-1.37.38l-4.22-2.12a1 1 0 0 1-.38-1.37zM17 10.59l2-2L16 5.59l-2 2zM6.55 16.27c.18-.58.33-1.22.45-1.9L9.4 11.83c.08-.1.14-.2.18-.3.2-.42.34-.87.41-1.34L11.5 9.17c.07-.47.1-1.03.11-1.63L11.72 7h.03a.5.5 0 0 0 .5-.5V5h-1.5a.5.5 0 0 0-.5.5v.03c-.6.01-1.16.04-1.63.11L7.84 6.8c-.47.07-.92.21-1.34.41-.1.04-.2.09-.3.18l-2.54 2.31c-.68.61-1.2 1.34-1.56 2.2V16.2c.16-.06.33-.12.5-.18a.99.99 0 0 1 .63-.09l1.62.27c.56.09 1.12.16 1.68.22 1.48.16 2.97.23 4.45.21l1.6-.02a.5.5 0 0 0 .47-.63c-.15-.49-.24-1-.3-1.52l-.08-.49z" />
-                        </svg>
-                        <span>Air Classic Travel</span>
-                    </Link>
+                    <Link
+  to="/"
+  className="flex items-center gap-2 text-white group transition-transform duration-300 hover:scale-105"
+  aria-label="Go to Air Classic homepage"
+  onClick={closeAllNavElements}
+>
+  <img
+    src="/logo3.png"
+    alt="Air Classic Logo"
+    className="w-10 h-10 object-contain transition-transform duration-300 group-hover:scale-110"
+  />
+  <span className="text-xl font-semibold tracking-wide">Air Classic Travel</span>
+</Link>
+
+
 
                     {/* Mobile Menu Toggle Button */}
                     <button

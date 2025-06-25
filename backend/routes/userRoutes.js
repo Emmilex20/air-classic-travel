@@ -10,7 +10,8 @@ const {
     updateUser,
     deleteUser,
 } = require('../controllers/userController');
-const { protect, admin } = require('../middleware/authMiddleware'); // Assuming 'admin' is your role-checking middleware
+// CORRECTED: Import 'authorize' instead of 'admin'
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -26,11 +27,13 @@ router.get('/me', protect, getMe);
 
 // NEW: Admin routes
 // These routes will first go through 'protect' to ensure a token is provided,
-// then 'admin' to ensure the user has the 'admin' role.
-router.route('/').get(protect, admin, getUsers); // GET /api/users (get all users)
+// then 'authorize(['admin'])' to ensure the user has the 'admin' role.
+router.route('/')
+    .get(protect, authorize(['admin']), getUsers); // GET /api/users (get all users)
+
 router.route('/:id')
-    .put(protect, admin, updateUser) // PUT /api/users/:id (update a specific user)
-    .delete(protect, admin, deleteUser); // DELETE /api/users/:id (delete a specific user)
+    .put(protect, authorize(['admin']), updateUser) // PUT /api/users/:id (update a specific user)
+    .delete(protect, authorize(['admin']), deleteUser); // DELETE /api/users/:id (delete a specific user)
 
 
 module.exports = router;

@@ -7,7 +7,8 @@ const {
     updateHotel,
     deleteHotel
 } = require('../controllers/hotelController');
-const { protect, admin } = require('../middleware/authMiddleware'); // Import protect and admin middleware
+// CORRECTED: Import 'authorize' instead of 'admin'
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -15,10 +16,10 @@ const router = express.Router();
 router.get('/', getHotels);
 router.get('/:id', getHotelById);
 
-// Protected routes (require authentication and admin role)
-// You might create a new middleware for 'hotel_staff' if that role becomes distinct.
-router.post('/', protect, admin, createHotel);
-router.put('/:id', protect, admin, updateHotel);
-router.delete('/:id', protect, admin, deleteHotel);
+// Protected routes (require authentication and appropriate roles)
+// Using 'authorize' middleware for both 'admin' and 'hotel_staff' roles
+router.post('/', protect, authorize(['admin', 'hotel_staff']), createHotel);
+router.put('/:id', protect, authorize(['admin', 'hotel_staff']), updateHotel);
+router.delete('/:id', protect, authorize(['admin', 'hotel_staff']), deleteHotel);
 
 module.exports = router;

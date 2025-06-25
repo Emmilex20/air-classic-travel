@@ -8,6 +8,7 @@ const bookingRoutes = require('./routes/bookingRoutes');
 const hotelRoutes = require('./routes/hotelRoutes'); // Assuming this is your hotel routes file
 const hotelBookingRoutes = require('./routes/hotelBookingRoutes');
 const paymentRoutes = require('./routes/paymentRoutes'); // NEW: Import payment routes
+const locationRoutes = require('./routes/locationRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -36,6 +37,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/hotels', hotelRoutes); // Make sure this matches your hotel routes file name
 app.use('/api/hotel-bookings', hotelBookingRoutes);
 app.use('/api/payments', paymentRoutes); // NEW: Use payment routes
+app.use('/api/locations', locationRoutes); 
 
 // Error handling middleware (if you have one, place it after all routes)
 // Example: app.use(errorHandler);

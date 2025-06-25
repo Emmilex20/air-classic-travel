@@ -5,7 +5,8 @@ const {
     handlePaystackWebhook,
     getAllPaymentsAdmin // <-- NEW: Import the admin function
 } = require('../controllers/paymentController');
-const { protect, admin } = require('../middleware/authMiddleware'); // Your auth middleware, ensure 'admin' is available
+// CORRECTED: Import 'authorize' instead of 'admin'
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -17,6 +18,6 @@ router.post('/webhook', handlePaystackWebhook);
 
 // NEW: Route for admin to get all payments
 // This will be hit by the frontend's AllPayments.jsx at /api/payments/admin
-router.get('/admin', protect, admin, getAllPaymentsAdmin); // <-- NEW ROUTE ADDED
+router.get('/admin', protect, authorize(['admin']), getAllPaymentsAdmin); // Corrected to use authorize(['admin'])
 
-module.exports = router; 
+module.exports = router;
